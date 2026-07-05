@@ -8,7 +8,7 @@ export const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10000,
+  timeout: 30000, // Increased to 30s for Google OAuth and slow backends
 })
 
 const ACCESS_TOKEN_KEY = 'ems_access_token'

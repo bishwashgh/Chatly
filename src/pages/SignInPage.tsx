@@ -25,13 +25,20 @@ export default function SignInPage() {
         await signInWithGoogle(tokenResponse.access_token)
         navigate(from, { replace: true })
       } catch (err) {
-        setError(normalizeError(err).message)
+        const message = normalizeError(err).message
+        // Show more helpful error message
+        if (message.includes('timeout') || message.includes('ECONNABORTED')) {
+          setError('Connection timeout. Please check your internet connection and try again.')
+        } else {
+          setError(message)
+        }
       } finally {
         setGoogleLoading(false)
       }
     },
-    onError: () => {
-      setError('Failed to sign in with Google')
+    onError: (error) => {
+      console.error('Google OAuth error:', error)
+      setError('Failed to sign in with Google. Please try again.')
       setGoogleLoading(false)
     }
   })
@@ -117,7 +124,7 @@ export default function SignInPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Signing in…
+                Connecting…
               </>
             ) : (
               <>
