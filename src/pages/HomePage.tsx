@@ -14,7 +14,7 @@ export default function HomePage() {
   return (
     <div>
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-red-800 via-red-700 to-amber-700">
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-cyan-500 to-blue-700">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10" style={{ 
           backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px)', 
@@ -28,26 +28,25 @@ export default function HomePage() {
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-white ring-1 ring-white/20 backdrop-blur-sm">
               <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h12a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a2 2 0 11-4 0 2 2 0 014 0z" clipRule="evenodd" />
               </svg>
-              Event Management System
+              Premier Venue Booking Platform
             </span>
             
             <h1 className="mt-5 font-display text-4xl font-extrabold leading-tight text-white md:text-5xl lg:text-6xl">
-              Book the perfect venue for your next event
+              Book premium venues for your events
             </h1>
             
-            <p className="mt-4 text-lg text-amber-100/90 md:text-xl">
-              Discover conference halls and outdoor spaces. Check availability, reserve your dates, 
-              and pay securely with Khalti or eSewa.
+            <p className="mt-4 text-lg text-blue-100/90 md:text-xl">
+              Discover perfect spaces in Bihe, Bratabanda, Pasni and more. Check real-time availability, secure your dates, and pay securely with Khalti or eSewa.
             </p>
             
             <div className="mt-8 flex flex-wrap gap-3">
               <Link 
                 to="/venues" 
-                className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-red-700 shadow-lg shadow-red-900/30 transition-all hover:scale-105 hover:bg-amber-50 hover:shadow-red-900/40 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-red-700"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-blue-700 shadow-lg shadow-blue-900/30 transition-all hover:scale-105 hover:bg-blue-50 hover:shadow-blue-900/40 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-700"
               >
-                Browse venues
+                Browse Venues
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
@@ -68,7 +67,7 @@ export default function HomePage() {
         {/* Hero Wave */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="#F5EDE0"/>
+            <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="#F0F9FF"/>
           </svg>
         </div>
       </section>

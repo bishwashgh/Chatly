@@ -58,7 +58,7 @@ export default function VenueDetailPage() {
 
         <div className="lg:col-span-2">
           <div className="card p-6">
-            <span className="badge bg-primary-50 text-primary-700">{venue.type === 'conferencehall' ? 'Conference Hall' : 'Outdoor'}</span>
+            <span className="badge bg-blue-50 text-blue-700">{venue.type === 'conferencehall' ? 'Conference Hall' : 'Outdoor'}</span>
             <h1 className="mt-3 font-display text-2xl font-bold text-slate-900">{venue.name}</h1>
             <p className="mt-2 text-sm text-slate-500">{venue.address}</p>
 

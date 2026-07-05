@@ -9,7 +9,7 @@
   }
   
   body { 
-    @apply bg-amber-50/50 text-stone-900 font-sans antialiased; 
+    @apply bg-blue-50/50 text-slate-900 font-sans antialiased; 
   }
   
   h1, h2, h3, h4 { 
@@ -23,14 +23,14 @@
     @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed; 
   }
   
-  /* Primary Button - Gradient Red to Amber */
+  /* Primary Button - Gradient Blue to Cyan */
   .btn-primary { 
-    @apply btn bg-gradient-to-r from-red-700 via-red-600 to-amber-700 text-white shadow-lg shadow-red-700/30 hover:shadow-red-700/40 hover:scale-105 focus:ring-red-500; 
+    @apply btn bg-gradient-to-r from-blue-600 via-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 hover:scale-105 focus:ring-blue-500; 
   }
   
-  /* Secondary Button - Amber themed */
+  /* Secondary Button - Blue themed */
   .btn-secondary { 
-    @apply btn bg-white/70 text-amber-800 border border-amber-600/30 backdrop-blur-sm shadow-sm hover:bg-amber-50 hover:border-amber-600/50 focus:ring-amber-500; 
+    @apply btn bg-white/70 text-blue-800 border border-blue-600/30 backdrop-blur-sm shadow-sm hover:bg-blue-50 hover:border-blue-600/50 focus:ring-blue-500; 
   }
   
   /* Ghost Button */
@@ -55,17 +55,17 @@
   
   /* Input Fields */
   .input { 
-    @apply w-full rounded-lg border border-amber-200/50 bg-white/90 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 transition focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/30 backdrop-blur-sm; 
+    @apply w-full rounded-lg border border-blue-200/50 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 backdrop-blur-sm; 
   }
   
   /* Label */
   .label { 
-    @apply mb-1.5 block text-sm font-medium text-stone-700; 
+    @apply mb-1.5 block text-sm font-medium text-slate-700; 
   }
   
-  /* Card - Warm Theme */
+  /* Card - Modern Blue Theme */
   .card { 
-    @apply rounded-xl border border-amber-200/30 bg-white/80 shadow-lg shadow-amber-900/5 backdrop-blur-sm; 
+    @apply rounded-xl border border-blue-200/30 bg-white/80 shadow-lg shadow-blue-900/5 backdrop-blur-sm; 
   }
   
   /* Badge */

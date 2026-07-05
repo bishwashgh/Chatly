@@ -39,11 +39,11 @@ export default function VenuesPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50/50 via-orange-50/30 to-amber-50/50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-cyan-50/30 to-blue-50/50">
       {/* Decorative Background */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-20 -right-20 h-96 w-96 rounded-full bg-amber-200/20 blur-3xl"></div>
-        <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-red-200/10 blur-3xl"></div>
+        <div className="absolute -top-20 -right-20 h-96 w-96 rounded-full bg-blue-200/20 blur-3xl"></div>
+        <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-cyan-200/10 blur-3xl"></div>
       </div>
 
       <div className="container-app relative py-10">
@@ -52,22 +52,22 @@ export default function VenuesPage() {
           animate ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
         }`}>
           <div className="flex items-center gap-3">
-            <span className="text-3xl">📍</span>
+            <span className="text-3xl">🏛️</span>
             <div>
-              <h1 className="font-display text-3xl font-bold bg-gradient-to-r from-red-700 via-amber-600 to-amber-700 bg-clip-text text-transparent">
-                Find your venue
+              <h1 className="font-display text-3xl font-bold bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent">
+                Discover Venues
               </h1>
-              <p className="mt-1 text-stone-500">
-                Browse all available spaces and book the one that fits your event.
+              <p className="mt-1 text-slate-500">
+                Find the perfect space for your event in Bihe, Bratabanda, Pasni and beyond.
               </p>
             </div>
           </div>
           
           {/* Decorative Line */}
           <div className="mt-3 flex items-center gap-3">
-            <div className="h-1 w-16 rounded-full bg-gradient-to-r from-red-600 to-amber-600"></div>
-            <div className="h-1 w-1 rounded-full bg-amber-400"></div>
-            <div className="h-1 w-8 rounded-full bg-gradient-to-r from-amber-600 to-amber-300"></div>
+            <div className="h-1 w-16 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600"></div>
+            <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
+            <div className="h-1 w-8 rounded-full bg-gradient-to-r from-cyan-600 to-cyan-300"></div>
           </div>
         </div>
 

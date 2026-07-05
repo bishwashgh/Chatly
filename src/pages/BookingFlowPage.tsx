@@ -82,7 +82,7 @@ export default function BookingFlowPage() {
           <p className="mt-1 text-sm text-slate-500">A 40% deposit is required to confirm your booking.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {(['khalti', 'esewa'] as PaymentProvider[]).map((p) => (
-              <button key={p} type="button" onClick={() => setProvider(p)} className={`flex items-center gap-3 rounded-xl border-2 p-4 text-left transition ${provider === p ? 'border-primary-500 bg-primary-50' : 'border-slate-200 hover:border-slate-300'}`}>
+              <button key={p} type="button" onClick={() => setProvider(p)} className={`flex items-center gap-3 rounded-xl border-2 p-4 text-left transition ${provider === p ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
                 <span className={`flex h-10 w-10 items-center justify-center rounded-lg font-bold text-white ${p === 'khalti' ? 'bg-purple-600' : 'bg-green-600'}`}>{p === 'khalti' ? 'K' : 'e'}</span>
                 <div><div className="font-semibold capitalize text-slate-900">{p}</div><div className="text-xs text-slate-500">Pay securely with {p}</div></div>
               </button>

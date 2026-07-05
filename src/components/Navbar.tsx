@@ -13,37 +13,35 @@ export function Navbar() {
 
   const navLink = ({ isActive }: { isActive: boolean }) =>
     `text-sm font-medium transition-colors ${
-      isActive ? 'text-amber-700' : 'text-stone-600 hover:text-stone-900'
+      isActive ? 'text-blue-700' : 'text-slate-600 hover:text-slate-900'
     }`;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-amber-200/30 bg-gradient-to-r from-amber-50/95 via-orange-50/95 to-amber-50/95 backdrop-blur-md shadow-sm">
+    <header className="sticky top-0 z-40 border-b border-blue-200/30 bg-gradient-to-r from-blue-50/95 via-cyan-50/95 to-blue-50/95 backdrop-blur-md shadow-sm">
       <nav className="container-app flex h-[76px] items-center justify-between">
         {/* Brand / Logo */}
         <Link to="/" className="flex items-center gap-3 flex-shrink-0">
-          <div className="relative flex h-[46px] w-[46px] items-center justify-center rounded-full bg-gradient-to-br from-red-700 to-amber-600 shadow-lg shadow-red-900/30 ring-2 ring-amber-600/20">
+          <div className="relative flex h-[46px] w-[46px] items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-900/30 ring-2 ring-cyan-400/20">
             <div className="absolute inset-1 rounded-full border border-white/25"></div>
             <svg className="h-6 w-6 text-white drop-shadow-sm" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C12 2 8 6 8 11C8 16 12 22 12 22C12 22 16 16 16 11C16 6 12 2 12 2ZM9.5 12C9.5 8.5 11 5.5 12 4C13 5.5 14.5 8.5 14.5 12C14.5 15.5 13 18.5 12 20C11 18.5 9.5 15.5 9.5 12Z" />
-              <path d="M7 14C7 14 2 12 2 8C2 4 7 2 7 2C7 2 5.5 5.5 6 9C6.5 12.5 8.5 14.5 10 16C8.5 15.5 7 14 7 14Z" />
-              <path d="M17 14C17 14 22 12 22 8C22 4 17 2 17 2C17 2 18.5 5.5 18 9C17.5 12.5 15.5 14.5 14 16C15.5 15.5 17 14 17 14Z" />
+              <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
             </svg>
           </div>
           <div className="flex flex-col leading-none">
-            <span className="bg-gradient-to-r from-red-800 via-amber-700 to-amber-600 bg-clip-text text-[22px] font-extrabold tracking-tight text-transparent">
-              Eventify
+            <span className="bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-600 bg-clip-text text-[22px] font-extrabold tracking-tight text-transparent">
+              VenueBook
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-[2px] text-amber-700/85">
-              Sacred Celebrations
+            <span className="text-[10px] font-semibold uppercase tracking-[2px] text-blue-700/85">
+              Event Spaces
             </span>
           </div>
         </Link>
 
         {/* Ornament */}
-        <div className="hidden items-center gap-2 text-amber-600/40 md:flex">
-          <div className="h-px w-7 bg-gradient-to-r from-transparent to-amber-600/50"></div>
-          <div className="h-1.5 w-1.5 rotate-45 bg-amber-600/50"></div>
-          <div className="h-px w-7 bg-gradient-to-l from-transparent to-amber-600/50"></div>
+        <div className="hidden items-center gap-2 text-blue-600/40 md:flex">
+          <div className="h-px w-7 bg-gradient-to-r from-transparent to-blue-600/50"></div>
+          <div className="h-1.5 w-1.5 rotate-45 bg-blue-600/50"></div>
+          <div className="h-px w-7 bg-gradient-to-l from-transparent to-blue-600/50"></div>
         </div>
 
         {/* Desktop Navigation Links */}
@@ -51,38 +49,16 @@ export function Navbar() {
           <NavLink to="/venues" className={navLink}>
             <span className="flex items-center gap-1.5">
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
               </svg>
-              Venues
+              Browse Venues
             </span>
           </NavLink>
           
-          <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-amber-600/30"></span>
-          
-          <NavLink to="/events" className={navLink}>
-            <span className="flex items-center gap-1.5">
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              Events
-            </span>
-          </NavLink>
-          
-          <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-amber-600/30"></span>
-          
-          <NavLink to="/gallery" className={navLink}>
-            <span className="flex items-center gap-1.5">
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-              </svg>
-              Gallery
-            </span>
-          </NavLink>
+          <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-blue-600/30"></span>
 
           {isAuthenticated && (
             <>
-              <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-amber-600/30"></span>
               <NavLink to="/bookings" className={navLink}>
                 <span className="flex items-center gap-1.5">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -91,20 +67,21 @@ export function Navbar() {
                   My Bookings
                 </span>
               </NavLink>
+              <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-blue-600/30"></span>
             </>
           )}
 
           {isAdmin && (
             <>
-              <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-amber-600/30"></span>
               <NavLink to="/admin/venues" className={navLink}>
                 <span className="flex items-center gap-1.5">
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                   </svg>
-                  Manage
+                  Admin
                 </span>
               </NavLink>
+              <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-blue-600/30"></span>
             </>
           )}
         </div>
