@@ -106,7 +106,7 @@ export default function BookingsPage() {
                   {/* ✅ Show cancel button only if not cancelled */}
                   {b.status !== 'cancelled' && (
                     <button 
-                      onClick={() => handleCancel(b.id)} 
+                      onClick={() => handleCancel(b.id, b.status)} 
                       className="btn-ghost text-xs text-error-600 hover:bg-error-50"
                     >
                       Cancel
