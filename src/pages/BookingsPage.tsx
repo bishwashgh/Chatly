@@ -6,12 +6,13 @@ import type { Booking, BookingStatus } from '../types'
 import { LoadingState, ErrorState, EmptyState } from '../components/Feedback'
 
 const statusStyles: Record<BookingStatus, string> = {
-  pending_payment: 'bg-warning-50 text-warning-600',
-  confirmed: 'bg-success-50 text-success-700',
-  cancelled: 'bg-slate-100 text-slate-500',
+  pending_payment: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
+  confirmed: 'bg-green-50 text-green-700 border border-green-200',
+  cancelled: 'bg-slate-100 text-slate-600 border border-slate-200',
 }
+
 const statusLabel: Record<BookingStatus, string> = {
-  pending_payment: 'Pending payment', 
+  pending_payment: 'Pending Payment', 
   confirmed: 'Confirmed', 
   cancelled: 'Cancelled',
 }
@@ -23,22 +24,31 @@ export default function BookingsPage() {
     queryFn: bookingsApi.listMine 
   })
 
-  const handleCancel = async (id: number) => {
-    if (!confirm('Cancel this booking?')) return
+  const handleCancel = async (id: number, status: BookingStatus) => {
+    // Don't allow cancellation of already cancelled bookings
+    if (status === 'cancelled') {
+      alert('This booking is already cancelled.')
+      return
+    }
+    
+    if (!confirm('Cancel this booking? This action cannot be undone.')) return
     
     try {
       await bookingsApi.cancel(id)
       qc.invalidateQueries({ queryKey: ['my-bookings'] })
+      alert('Booking cancelled successfully.')
     } catch (error: any) {
-      // ✅ Handle 404 gracefully (endpoint doesn't exist yet)
+      console.error('Cancel error:', error)
+      // Handle specific error types
       if (error.response?.status === 404) {
-        alert('Cancel functionality is not available yet. Please contact support.')
+        alert('Booking not found.')
       } else if (error.response?.status === 401) {
         alert('Please sign in again to cancel this booking.')
+      } else if (error.response?.status === 400) {
+        alert(error.response.data?.message || 'Cannot cancel this booking.')
       } else {
         alert('Failed to cancel booking. Please try again later.')
       }
-      console.error('Cancel error:', error)
     }
   }
 

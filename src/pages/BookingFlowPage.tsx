@@ -41,19 +41,32 @@ export default function BookingFlowPage() {
     try {
       const booking = await bookingsApi.create({ venueId: venue.id, startDate: new Date(startDate).toISOString(), endDate: new Date(endDate).toISOString() })
       const payRes = await paymentsApi.initialize({ bookingId: booking.id, provider })
-      if (payRes.paymentUrl) { window.location.href = payRes.paymentUrl; return }
-      if (provider === 'esewa' && payRes.formData) {
+      
+      // Handle Khalti payment
+      if (provider === 'khalti' && payRes.payment_url) { 
+        window.location.href = payRes.payment_url
+        return 
+      }
+      
+      // Handle eSewa payment
+      if (provider === 'esewa' && payRes.action && payRes.fields) {
         const form = document.createElement('form')
         form.method = 'POST'
-        form.action = payRes.formData.action ?? ''
-        Object.entries(payRes.formData).forEach(([k, v]) => {
-          if (k === 'action') return
+        form.action = payRes.action
+        
+        Object.entries(payRes.fields).forEach(([k, v]) => {
           const input = document.createElement('input')
-          input.type = 'hidden'; input.name = k; input.value = v
+          input.type = 'hidden'
+          input.name = k
+          input.value = String(v)
           form.appendChild(input)
         })
-        document.body.appendChild(form); form.submit(); return
+        
+        document.body.appendChild(form)
+        form.submit()
+        return
       }
+      
       navigate('/bookings')
     } catch (err) {
       setError(normalizeError(err).message)
