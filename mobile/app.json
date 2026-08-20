@@ -64,7 +64,11 @@
     "extra": {
       "apiUrl": "https://chatly-pxeb.onrender.com",
       "wsUrl": "wss://chatly-pxeb.onrender.com/ws",
-      "googleClientId": ""
-    }
+      "googleClientId": "",
+      "eas": {
+        "projectId": "540f4c32-e7c2-4cc5-906f-4ff065c83cf8"
+      }
+    },
+    "owner": "bishwas90"
   }
 }
