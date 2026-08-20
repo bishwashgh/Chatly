@@ -1,0 +1,58 @@
+# Node.js & Metro (React Native)
+node_modules/
+.metro/
+metro-cache/
+.expo/
+dist/
+build/
+
+# Rust / Cargo
+target/
+**/target/
+*.rs.bk
+
+# Android (React Native)
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/app/debug.keystore
+android/app/release.keystore
+*.apk
+*.aab
+
+# iOS (React Native)
+ios/Pods/
+ios/build/
+ios/DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserdata
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.keystore
+
+# IDEs & Operating Systems
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.iml
