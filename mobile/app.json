@@ -4,6 +4,7 @@
     "slug": "chatly",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "chatly",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
