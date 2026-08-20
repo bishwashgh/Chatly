@@ -1,0 +1,19 @@
+[Unit]
+Description=Chatly backend (Rust/Axum)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=nepalchat
+Group=nepalchat
+WorkingDirectory=/opt/nepalchat
+EnvironmentFile=/opt/nepalchat/.env
+ExecStart=/opt/nepalchat/chat_backend
+Restart=always
+RestartSec=5
+# Uploads live next to the binary; give the service write access
+ReadWritePaths=/opt/nepalchat/uploads
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "Chatly",
+    "slug": "chatly",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#ffffff",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nepalchat.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Chatly uses the camera for video calls and taking photos to share.",
+        "NSMicrophoneUsageDescription": "Chatly uses the microphone for audio calls and voice messages.",
+        "NSPhotoLibraryUsageDescription": "Chatly needs access to your photo library to share images."
+      }
+    },
+    "android": {
+      "package": "com.nepalchat.app",
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CHANGE_NETWORK_STATE",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.FOREGROUND_SERVICE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Chatly needs access to your photos to share images.",
+          "cameraPermission": "Chatly needs camera access to take photos to share.",
+          "microphonePermission": "Chatly needs microphone access to record audio messages."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Chatly needs microphone access to record audio messages."
+        }
+      ],
+      "expo-web-browser"
+    ],
+    "extra": {
+      "apiUrl": "https://harder-reaching-chubby-pacific.trycloudflare.com",
+      "wsUrl": "wss://harder-reaching-chubby-pacific.trycloudflare.com/ws",
+      "googleClientId": ""
+    }
+  }
+}

@@ -1,0 +1,79 @@
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: chat_app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chat_app"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/chat_app
+      JWT_SECRET: ${JWT_SECRET:?set a strong JWT_SECRET in .env}
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 3000
+      UPLOAD_DIR: /app/uploads
+      RUST_LOG: chat_backend=info,tower_http=info
+    volumes:
+      - uploads:/app/uploads
+    expose:
+      - "3000"
+
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TURN_RELAY_IP: ${PUBLIC_IP:?set PUBLIC_IP in .env}
+      TURN_LISTENING_PORT: "3478"
+      TURN_USER: nepalchat:${TURN_PASSWORD:?set TURN_PASSWORD in .env}
+      TURN_REALM: ${TURN_REALM:-nepalchat.example.com}
+      TURN_VERBOSE: "0"
+    command:
+      - --no-cli
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_PASSWORD}
+      - --realm=${TURN_REALM}
+      - --external-ip=${PUBLIC_IP}
+      - --listening-port=3478
+      - --min-port=49160
+      - --max-port=49200
+      - --no-multicast-peers
+      - --no-tcp-relay
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env, e.g. chat.example.com}
+      BACKEND_ADDR: backend:3000
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:
