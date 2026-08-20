@@ -33,8 +33,8 @@ ENV SERVER_HOST=0.0.0.0
 ENV SERVER_PORT=3000
 ENV UPLOAD_DIR=/app/uploads
 ENV MIGRATIONS_DIR=/app/migrations
-ENV RESEND_API_KEY=
-ENV RESEND_FROM_EMAIL=Chatly <onboarding@resend.dev>
+ENV RESEND_API_KEY=re_FBsrKrjq_7cGqFJUmzL816XRnX8jJjuNL
+ENV RESEND_FROM_EMAIL="Chatly <no-reply@bishwasghimire.com.np>"
 ENV RUST_LOG=chat_backend=info,tower_http=info
 
 EXPOSE 3000
