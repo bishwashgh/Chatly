@@ -18,6 +18,15 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use ws::WsChannels;
 
+fn db_host(url: &str) -> &str {
+    url.split('@')
+        .nth(1)
+        .unwrap_or(url)
+        .split('/')
+        .next()
+        .unwrap_or(url)
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub db: sqlx::PgPool,
@@ -35,14 +44,32 @@ async fn main() {
         )
         .init();
 
+    tracing::info!("chat_backend starting");
+
     let database_url = std::env::var("DATABASE_URL")
         .expect("DATABASE_URL must be set");
+    tracing::info!("DATABASE_URL is set (host: {})", db_host(&database_url));
 
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&database_url)
-        .await
-        .expect("Failed to connect to database");
+    let mut pool: Option<sqlx::PgPool> = None;
+    for attempt in 1..=15 {
+        match PgPoolOptions::new()
+            .max_connections(10)
+            .acquire_timeout(std::time::Duration::from_secs(5))
+            .connect(&database_url)
+            .await
+        {
+            Ok(p) => {
+                tracing::info!("Connected to database on attempt {}/15", attempt);
+                pool = Some(p);
+                break;
+            }
+            Err(e) => {
+                tracing::error!("DB connect attempt {}/15 failed: {}", attempt, e);
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            }
+        }
+    }
+    let pool = pool.expect("Failed to connect to database after 15 attempts");
 
     db::run_migrations(&pool)
         .await
@@ -93,6 +120,8 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .expect("Failed to bind");
+
+    tracing::info!("Server listening on http://{}", addr);
 
     axum::serve(listener, app)
         .await
