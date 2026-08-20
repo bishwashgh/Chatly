@@ -8,7 +8,7 @@ const getApiUrl = () => {
   if (fromEnv) return fromEnv;
   const fromConfig = Constants.expoConfig?.extra?.apiUrl as string | undefined;
   if (fromConfig) return fromConfig;
-  return 'https://harder-reaching-chubby-pacific.trycloudflare.com';
+  return 'https://chatly-pxeb.onrender.com';
 };
 
 const getWsUrl = () => {
@@ -16,7 +16,7 @@ const getWsUrl = () => {
   if (fromEnv) return fromEnv;
   const fromConfig = Constants.expoConfig?.extra?.wsUrl as string | undefined;
   if (fromConfig) return fromConfig;
-  return 'wss://harder-reaching-chubby-pacific.trycloudflare.com/ws';
+  return 'wss://chatly-pxeb.onrender.com/ws';
 };
 
 export const API_URL = getApiUrl();

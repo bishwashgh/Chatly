@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": false,
     "backgroundColor": "#ffffff",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -57,11 +58,12 @@
           "microphonePermission": "Chatly needs microphone access to record audio messages."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-font"
     ],
     "extra": {
-      "apiUrl": "https://harder-reaching-chubby-pacific.trycloudflare.com",
-      "wsUrl": "wss://harder-reaching-chubby-pacific.trycloudflare.com/ws",
+      "apiUrl": "https://chatly-pxeb.onrender.com",
+      "wsUrl": "wss://chatly-pxeb.onrender.com/ws",
       "googleClientId": ""
     }
   }
