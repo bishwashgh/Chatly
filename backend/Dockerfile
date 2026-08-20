@@ -4,14 +4,14 @@ WORKDIR /build
 
 RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 
-COPY backend/Cargo.toml backend/Cargo.lock* ./
+COPY Cargo.toml Cargo.lock* ./
 
 RUN mkdir -p src && echo "fn main() {}" > src/main.rs && \
     cargo build --release && \
     rm -rf src
 
-COPY backend/src ./src
-COPY backend/migrations ./migrations
+COPY src ./src
+COPY migrations ./migrations
 
 RUN cargo build --release
 
@@ -23,7 +23,6 @@ WORKDIR /app
 
 COPY --from=builder /build/target/release/chat_backend ./chat_backend
 COPY --from=builder /build/migrations ./migrations
-COPY backend/.env.example ./.env.example
 
 RUN mkdir -p /app/uploads && chmod +x /app/chat_backend
 
