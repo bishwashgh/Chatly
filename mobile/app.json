@@ -28,6 +28,10 @@
     },
     "android": {
       "package": "com.nepalchat.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#283CA0"
+      },
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.CAMERA",

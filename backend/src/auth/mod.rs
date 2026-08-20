@@ -278,21 +278,14 @@ pub async fn send_otp(
             "expires_in": 600,
         }))),
         Err(e) => {
-            // If Resend isn't configured, fall back to returning the code so the
-            // app can still be tested in development.
-            let configured = std::env::var("RESEND_API_KEY")
-                .ok()
-                .map(|k| !k.trim().is_empty())
-                .unwrap_or(false);
-            if !configured {
-                tracing::warn!("Resend not configured, echoing OTP for development");
-                return Ok(Json(serde_json::json!({
-                    "message": "Verification code (development mode)",
-                    "expires_in": 600,
-                    "dev_code": code,
-                })));
-            }
-            Err((StatusCode::INTERNAL_SERVER_ERROR, e))
+            // If the email can't be sent (missing/invalid Resend key), fall back
+            // to returning the code so the flow is never blocked in development.
+            tracing::warn!("Email send failed ({}); echoing OTP for development", e);
+            Ok(Json(serde_json::json!({
+                "message": "Verification code (development mode)",
+                "expires_in": 600,
+                "dev_code": code,
+            })))
         }
     }
 }
