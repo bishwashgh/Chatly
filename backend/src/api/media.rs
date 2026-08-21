@@ -60,8 +60,9 @@ async fn upload_to_cloudinary(
 
     let timestamp = chrono::Utc::now().timestamp().to_string();
     let params = vec![
-        ("timestamp".to_string(), timestamp.clone()),
+        ("api_key".to_string(), api_key.clone()),
         ("public_id".to_string(), public_id.to_string()),
+        ("timestamp".to_string(), timestamp.clone()),
     ];
     let signature = cloudinary_signature(&params, &api_secret);
 
