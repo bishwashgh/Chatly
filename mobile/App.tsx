@@ -29,6 +29,7 @@ import { HomeScreen } from './src/screens/HomeScreen';
 import { IncomingCallOverlay } from './src/components/IncomingCallOverlay';
 import { TabKey } from './src/components/BottomNav';
 import { AuthScreenName, OtpParams } from './src/navigation/types';
+import { spacing } from './src/theme';
 
 type AppScreen =
   | { name: 'home' }
@@ -278,7 +279,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <View style={styles.flex}>
+      <View style={[styles.flex, { paddingHorizontal: spacing.gutter }]}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <Animated.View style={[styles.flex, { opacity: screenFade }]}>
           {renderScreen()}
