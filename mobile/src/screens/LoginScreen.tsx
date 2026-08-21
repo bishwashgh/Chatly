@@ -7,6 +7,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,7 +46,9 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
     try {
       await login(email.trim().toLowerCase(), password);
     } catch (e: any) {
-      setError(e.message || 'Login failed');
+      const msg = e?.message || 'Login failed. Please try again.';
+      setError(msg);
+      // Don't crash - just show error
     } finally {
       setLoading(false);
     }
@@ -55,79 +58,82 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
     <AmbientBackground>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}
       >
         <ScrollView
           contentContainerStyle={[
             styles.container,
-            { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
+            { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 32 },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-        <View style={styles.brandSection}>
-          <LinearGradient
-            colors={[colors.primary, colors.gradientSecondary]}
-            style={styles.logoGlow}
-          >
-            <View style={styles.logoCircle}>
-              <Ionicons name="chatbubble-ellipses" size={44} color={colors.primary} />
-            </View>
-          </LinearGradient>
-          <Text style={styles.brandName}>Chatly</Text>
-          <Text style={styles.brandTagline}>Fast, secure messaging for Nepal</Text>
-        </View>
+          <View style={styles.brandSection}>
+            <LinearGradient
+              colors={[colors.primary, colors.gradientSecondary]}
+              style={styles.logoGlow}
+            >
+              <View style={styles.logoCircle}>
+                <Ionicons name="chatbubble-ellipses" size={44} color={colors.primary} />
+              </View>
+            </LinearGradient>
+            <Text style={styles.brandName}>Chatly</Text>
+            <Text style={styles.brandTagline}>Fast, secure messaging for Nepal</Text>
+          </View>
 
-        <GlassPanel variant="card" rounded="lg" style={styles.formCard}>
-          <Text style={styles.formTitle}>Welcome back</Text>
+          <GlassPanel variant="card" rounded="lg" style={styles.formCard}>
+            <Text style={styles.formTitle}>Welcome back</Text>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <GlassInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Email address"
-            icon="mail-outline"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            style={styles.inputSpacing}
-          />
-          <GlassInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            icon="lock-closed-outline"
-            secure
-            autoCapitalize="none"
-            style={styles.inputSpacing}
-            onSubmitEditing={handleLogin}
-          />
+            <GlassInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email address"
+              icon="mail-outline"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.inputSpacing}
+            />
+            <GlassInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              icon="lock-closed-outline"
+              secure
+              autoCapitalize="none"
+              style={styles.inputSpacing}
+              onSubmitEditing={handleLogin}
+            />
 
-          <TouchableOpacity style={styles.forgotLink} onPress={() => onNavigate('forgot')}>
-            <Text style={styles.forgotText}>Forgot password?</Text>
+            <TouchableOpacity style={styles.forgotLink} onPress={() => onNavigate('forgot')}>
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </TouchableOpacity>
+
+            <GlassButton
+              title={loading ? 'Signing in...' : 'Sign In'}
+              variant="fluid"
+              onPress={handleLogin}
+              style={styles.submitButton}
+              disabled={loading}
+              icon={<Ionicons name="log-in-outline" size={18} color="#fff" />}
+            />
+          </GlassPanel>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>or continue with</Text>
+            <View style={styles.divider} />
+          </View>
+
+          <GoogleSignInButton />
+
+          <TouchableOpacity onPress={() => onNavigate('register')} style={styles.switchLink}>
+            <Text style={styles.switchText}>
+              New here? <Text style={styles.switchAccent}>Create account</Text>
+            </Text>
           </TouchableOpacity>
-
-          <GlassButton
-            title={loading ? 'Signing in...' : 'Sign In'}
-            onPress={handleLogin}
-            style={styles.submitButton}
-            disabled={loading}
-          />
-        </GlassPanel>
-
-        <View style={styles.dividerRow}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>or continue with</Text>
-          <View style={styles.divider} />
-        </View>
-
-        <GoogleSignInButton />
-
-        <TouchableOpacity onPress={() => onNavigate('register')} style={styles.switchLink}>
-          <Text style={styles.switchText}>
-            New here? <Text style={styles.switchAccent}>Create account</Text>
-          </Text>
-        </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </AmbientBackground>
@@ -136,103 +142,105 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
 
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-  flex: { flex: 1 },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.gutter,
-    justifyContent: 'center',
-  },
-  brandSection: {
-    alignItems: 'center',
-    marginBottom: spacing.stackLg,
-  },
-  logoGlow: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    padding: 3,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  logoCircle: {
-    flex: 1,
-    borderRadius: 41,
-    backgroundColor: colors.surfaceContainerLowest,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandName: {
-    ...typography.headlineMd,
-    color: colors.onBackground,
-    marginTop: 12,
-  },
-  brandTagline: {
-    ...typography.bodyMd,
-    color: colors.onSurfaceVariant,
-    marginTop: 4,
-  },
-  formCard: {
-    width: '100%',
-    padding: 20,
-    gap: 12,
-  },
-  formTitle: {
-    ...typography.headlineMd,
-    color: colors.onBackground,
-    marginBottom: 8,
-  },
-  inputSpacing: {
-    marginVertical: 2,
-  },
-  forgotLink: {
-    alignSelf: 'flex-end',
-    paddingVertical: 2,
-  },
-  forgotText: {
-    ...typography.bodyMd,
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  submitButton: {
-    marginTop: 8,
-  },
-  errorText: {
-    ...typography.bodyMd,
-    color: colors.error,
-    marginBottom: 4,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: spacing.stackMd,
-    marginBottom: spacing.stackSm,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.glassBorder,
-  },
-  dividerText: {
-    ...typography.labelSm,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-  },
-  switchLink: {
-    marginTop: spacing.stackMd,
-    padding: 12,
-    alignItems: 'center',
-  },
-  switchText: {
-    ...typography.bodyMd,
-    color: colors.onSurfaceVariant,
-  },
-  switchAccent: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-});
+    flex: { flex: 1 },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: spacing.gutter,
+      justifyContent: 'center',
+    },
+    brandSection: {
+      alignItems: 'center',
+      marginBottom: spacing.stackLg,
+    },
+    logoGlow: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      padding: 3,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      elevation: 8,
+    },
+    logoCircle: {
+      flex: 1,
+      borderRadius: 41,
+      backgroundColor: colors.surfaceContainerLowest,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    brandName: {
+      ...typography.headlineMd,
+      color: colors.onBackground,
+      marginTop: 12,
+    },
+    brandTagline: {
+      ...typography.bodyMd,
+      color: colors.onSurfaceVariant,
+      marginTop: 4,
+    },
+    formCard: {
+      width: '100%',
+      padding: 20,
+      gap: 12,
+    },
+    formTitle: {
+      ...typography.headlineMd,
+      color: colors.onBackground,
+      marginBottom: 8,
+    },
+    inputSpacing: {
+      marginVertical: 2,
+    },
+    forgotLink: {
+      alignSelf: 'flex-end',
+      paddingVertical: 2,
+    },
+    forgotText: {
+      ...typography.bodyMd,
+      fontSize: 13,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    submitButton: {
+      marginTop: 8,
+      minWidth: '100%',
+    },
+    errorText: {
+      ...typography.bodyMd,
+      color: colors.error,
+      marginBottom: 4,
+      textAlign: 'center',
+    },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginTop: spacing.stackMd,
+      marginBottom: spacing.stackSm,
+    },
+    divider: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.glassBorder,
+    },
+    dividerText: {
+      ...typography.labelSm,
+      fontSize: 11,
+      color: colors.onSurfaceVariant,
+    },
+    switchLink: {
+      marginTop: spacing.stackMd,
+      padding: 12,
+      alignItems: 'center',
+    },
+    switchText: {
+      ...typography.bodyMd,
+      color: colors.onSurfaceVariant,
+    },
+    switchAccent: {
+      color: colors.primary,
+      fontWeight: '700',
+    },
+  });

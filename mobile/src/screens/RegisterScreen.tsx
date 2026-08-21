@@ -15,13 +15,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { typography, spacing, ThemeColors } from '../theme';
-import { useTheme } from '../store/themeStore';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { GlassPanel } from '../components/GlassPanel';
 import { GlassInput } from '../components/GlassInput';
 import { GlassButton } from '../components/GlassButton';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { api } from '../services/api';
+import { useAuthStore } from '../store/authStore';
+import { useTheme } from '../store/themeStore';
 import { AuthScreenName, OtpParams, PendingSignup } from '../navigation/types';
 
 type RegisterScreenProps = {
@@ -43,19 +44,23 @@ export function RegisterScreen({ onNavigate, initialData }: RegisterScreenProps)
   const [error, setError] = useState('');
 
   const pickAvatar = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to set a profile picture.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setAvatarUri(result.assets[0].uri);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Allow photo access to set a profile picture.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setAvatarUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.warn('Avatar picker error', e);
     }
   };
 
@@ -95,7 +100,8 @@ export function RegisterScreen({ onNavigate, initialData }: RegisterScreenProps)
         pendingData: pending,
       });
     } catch (e: any) {
-      setError(e.message || 'Could not send the verification code');
+      const msg = e?.message || 'Could not send the verification code';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -105,7 +111,8 @@ export function RegisterScreen({ onNavigate, initialData }: RegisterScreenProps)
     <AmbientBackground>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}
       >
         <ScrollView
           contentContainerStyle={[
@@ -115,106 +122,108 @@ export function RegisterScreen({ onNavigate, initialData }: RegisterScreenProps)
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-        <View style={styles.brandSection}>
-          <LinearGradient
-            colors={[colors.primary, colors.gradientSecondary]}
-            style={styles.logoGlow}
-          >
-            <View style={styles.logoCircle}>
-              <Ionicons name="chatbubble-ellipses" size={36} color={colors.primary} />
-            </View>
-          </LinearGradient>
-          <Text style={styles.brandName}>Create Account</Text>
-          <Text style={styles.brandTagline}>Join Chatly</Text>
-        </View>
-
-        <GlassPanel variant="card" rounded="lg" style={styles.formCard}>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          <TouchableOpacity style={styles.avatarWrap} onPress={pickAvatar} activeOpacity={0.8}>
+          <View style={styles.brandSection}>
             <LinearGradient
               colors={[colors.primary, colors.gradientSecondary]}
-              style={styles.avatarRing}
+              style={styles.logoGlow}
             >
-              <View style={styles.avatarCircle}>
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-                ) : (
-                  <Ionicons name="person" size={40} color={colors.primary} />
-                )}
+              <View style={styles.logoCircle}>
+                <Ionicons name="chatbubble-ellipses" size={36} color={colors.primary} />
               </View>
             </LinearGradient>
-            <View style={styles.avatarBadge}>
-              <Ionicons name="camera" size={16} color={colors.surfaceContainerLowest} />
-            </View>
-            <Text style={styles.avatarHint}>
-              {avatarUri ? 'Change photo' : 'Add a profile photo (optional)'}
+            <Text style={styles.brandName}>Create Account</Text>
+            <Text style={styles.brandTagline}>Join Chatly</Text>
+          </View>
+
+          <GlassPanel variant="card" rounded="lg" style={styles.formCard}>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <TouchableOpacity style={styles.avatarWrap} onPress={pickAvatar} activeOpacity={0.8}>
+              <LinearGradient
+                colors={[colors.primary, colors.gradientSecondary]}
+                style={styles.avatarRing}
+              >
+                <View style={styles.avatarCircle}>
+                  {avatarUri ? (
+                    <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                  ) : (
+                    <Ionicons name="person" size={40} color={colors.primary} />
+                  )}
+                </View>
+              </LinearGradient>
+              <View style={styles.avatarBadge}>
+                <Ionicons name="camera" size={16} color={colors.surfaceContainerLowest} />
+              </View>
+              <Text style={styles.avatarHint}>
+                {avatarUri ? 'Change photo' : 'Add a profile photo (optional)'}
+              </Text>
+            </TouchableOpacity>
+
+            <GlassInput
+              value={displayName}
+              onChangeText={setDisplayName}
+              placeholder="Full name"
+              icon="person-outline"
+            />
+            <GlassInput
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Username"
+              icon="at-outline"
+              autoCapitalize="none"
+              style={styles.inputSpacing}
+            />
+            <GlassInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email address"
+              icon="mail-outline"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.inputSpacing}
+            />
+            <GlassInput
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Phone (e.g. 98XXXXXXXX)"
+              icon="call-outline"
+              keyboardType="phone-pad"
+              style={styles.inputSpacing}
+            />
+            <GlassInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              icon="lock-closed-outline"
+              secure
+              autoCapitalize="none"
+              style={styles.inputSpacing}
+              onSubmitEditing={handleRegister}
+            />
+
+            <GlassButton
+              title={loading ? 'Sending code...' : 'Continue'}
+              variant="fluid"
+              onPress={handleRegister}
+              style={styles.submitButton}
+              disabled={loading}
+              icon={<Ionicons name="arrow-forward-outline" size={18} color="#fff" />}
+            />
+          </GlassPanel>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>or continue with</Text>
+            <View style={styles.divider} />
+          </View>
+
+          <GoogleSignInButton />
+
+          <TouchableOpacity onPress={() => onNavigate('login')} style={styles.switchLink}>
+            <Text style={styles.switchText}>
+              Already have an account? <Text style={styles.switchAccent}>Sign in</Text>
             </Text>
           </TouchableOpacity>
-
-          <GlassInput
-            value={displayName}
-            onChangeText={setDisplayName}
-            placeholder="Full name"
-            icon="person-outline"
-          />
-          <GlassInput
-            value={username}
-            onChangeText={setUsername}
-            placeholder="Username"
-            icon="at-outline"
-            autoCapitalize="none"
-            style={styles.inputSpacing}
-          />
-          <GlassInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Email address"
-            icon="mail-outline"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            style={styles.inputSpacing}
-          />
-          <GlassInput
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="Phone (e.g. 98XXXXXXXX)"
-            icon="call-outline"
-            keyboardType="phone-pad"
-            style={styles.inputSpacing}
-          />
-          <GlassInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            icon="lock-closed-outline"
-            secure
-            autoCapitalize="none"
-            style={styles.inputSpacing}
-            onSubmitEditing={handleRegister}
-          />
-
-          <GlassButton
-            title={loading ? 'Sending code...' : 'Continue'}
-            onPress={handleRegister}
-            style={styles.submitButton}
-            disabled={loading}
-          />
-        </GlassPanel>
-
-        <View style={styles.dividerRow}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>or continue with</Text>
-          <View style={styles.divider} />
-        </View>
-
-        <GoogleSignInButton />
-
-        <TouchableOpacity onPress={() => onNavigate('login')} style={styles.switchLink}>
-          <Text style={styles.switchText}>
-            Already have an account? <Text style={styles.switchAccent}>Sign in</Text>
-          </Text>
-        </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </AmbientBackground>
@@ -310,11 +319,13 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   submitButton: {
     marginTop: 8,
+    minWidth: '100%',
   },
   errorText: {
     ...typography.bodyMd,
     color: colors.error,
     marginBottom: 4,
+    textAlign: 'center',
   },
   dividerRow: {
     flexDirection: 'row',
