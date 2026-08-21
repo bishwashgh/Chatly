@@ -138,6 +138,7 @@ export const spacing = {
   stackSm: 8,
   stackMd: 16,
   stackLg: 32,
+  stackXl: 48,
 } as const;
 
 export const typography = {
@@ -153,6 +154,13 @@ export const typography = {
     fontSize: 24,
     fontWeight: '600' as const,
     lineHeight: 32,
+    letterSpacing: -0.01,
+  },
+  headlineSm: {
+    fontFamily: 'Manrope',
+    fontSize: 20,
+    fontWeight: '600' as const,
+    lineHeight: 28,
     letterSpacing: -0.01,
   },
   headlineLgMobile: {
@@ -172,6 +180,12 @@ export const typography = {
     fontSize: 14,
     fontWeight: '400' as const,
     lineHeight: 20,
+  },
+  bodySm: {
+    fontFamily: 'Manrope',
+    fontSize: 12,
+    fontWeight: '400' as const,
+    lineHeight: 18,
   },
   labelSm: {
     fontFamily: 'Manrope',

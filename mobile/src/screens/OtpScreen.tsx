@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { typography, spacing, ThemeColors } from '../theme';
@@ -60,9 +60,14 @@ export function OtpScreen({ params, onBack }: OtpScreenProps) {
     <AmbientBackground>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}
       >
-        <View style={[styles.container, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 }]}>
+        <ScrollView
+          contentContainerStyle={[styles.container, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
@@ -89,14 +94,14 @@ export function OtpScreen({ params, onBack }: OtpScreenProps) {
           />
         </GlassPanel>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Didn't receive the code?</Text>
-          <TouchableOpacity onPress={handleResend}>
-            <Text style={styles.resendText}>Resend code</Text>
-          </TouchableOpacity>
-        </View>
-        </View>
-      </KeyboardAvoidingView>
+<View style={styles.footer}>
+            <Text style={styles.footerText}>Didn't receive the code?</Text>
+            <TouchableOpacity onPress={handleResend}>
+              <Text style={styles.resendText}>Resend code</Text>
+            </TouchableOpacity>
+          </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
     </AmbientBackground>
   );
 }

@@ -1,4 +1,4 @@
-export type AuthScreenName = 'login' | 'register' | 'otp' | 'forgot';
+export type AuthScreenName = 'home' | 'login' | 'register' | 'otp' | 'forgot';
 
 export type PendingSignup = {
   username: string;

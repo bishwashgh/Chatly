@@ -25,11 +25,13 @@ import { CallScreen } from './src/screens/CallScreen';
 import { PeopleScreen } from './src/screens/PeopleScreen';
 import { GroupsScreen } from './src/screens/GroupsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { HomeScreen } from './src/screens/HomeScreen';
 import { IncomingCallOverlay } from './src/components/IncomingCallOverlay';
 import { TabKey } from './src/components/BottomNav';
 import { AuthScreenName, OtpParams } from './src/navigation/types';
 
 type AppScreen =
+  | { name: 'home' }
   | { name: 'messages' }
   | { name: 'groups' }
   | { name: 'discover' }
@@ -47,7 +49,7 @@ export default function App() {
   const remoteUserId = useCallStore((s) => s.remoteUserId);
 
   const [activeTab, setActiveTab] = useState<TabKey>('messages');
-  const [screen, setScreen] = useState<AppScreen>({ name: 'messages' });
+  const [screen, setScreen] = useState<AppScreen>({ name: 'home' });
   const [authScreen, setAuthScreen] = useState<AuthScreenName>('login');
   const [authParams, setAuthParams] = useState<OtpParams | null>(null);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
@@ -63,6 +65,16 @@ export default function App() {
     setAuthParams(params || null);
   };
 
+  const handleSignIn = () => {
+    setAuthScreen('login');
+    setAuthParams(null);
+  };
+
+  const handleSignUp = () => {
+    setAuthScreen('register');
+    setAuthParams(null);
+  };
+
   useEffect(() => {
     initialize();
   }, []);
@@ -71,7 +83,12 @@ export default function App() {
     useThemeStore.getState().hydrate();
   }, []);
 
-  // Reset to the login screen whenever the user is authenticated.
+  useEffect(() => {
+    if (isAuthenticated && screen.name === 'home') {
+      setScreen({ name: 'messages' });
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (isAuthenticated) {
       setAuthScreen('login');
@@ -79,16 +96,13 @@ export default function App() {
     }
   }, [isAuthenticated]);
 
-  // Register WS handlers for incoming calls
   useEffect(() => {
     const unsubOffer = wsService.on('call_offer', async (data) => {
-      // Find/create conversation with caller
       const fromUserId = data.from_id;
       try {
         const conv = await api.createConversation(fromUserId);
         useChatStore.getState().loadConversations();
       } catch (e) {
-        // ignore - user might not be a valid participant
       }
     });
 
@@ -109,33 +123,40 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
+    if (authScreen !== 'home') {
+      return (
+        <SafeAreaProvider>
+          <View style={styles.loadingContainer}>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+            {authScreen === 'login' && <LoginScreen onNavigate={handleAuthNavigate} />}
+            {authScreen === 'register' && (
+              <RegisterScreen onNavigate={handleAuthNavigate} initialData={authParams?.pendingData} />
+            )}
+            {authScreen === 'otp' && (
+              <OtpScreen
+                params={authParams}
+                onBack={() => handleAuthNavigate('register', authParams || undefined)}
+              />
+            )}
+            {authScreen === 'forgot' && (
+              <ForgotPasswordScreen
+                initialEmail={authParams?.email}
+                onBack={() => handleAuthNavigate('login')}
+                onDone={() => handleAuthNavigate('login')}
+              />
+            )}
+          </View>
+        </SafeAreaProvider>
+      );
+    }
+
     return (
       <SafeAreaProvider>
-        <View style={styles.loadingContainer}>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-          {authScreen === 'login' && <LoginScreen onNavigate={handleAuthNavigate} />}
-          {authScreen === 'register' && (
-            <RegisterScreen onNavigate={handleAuthNavigate} initialData={authParams?.pendingData} />
-          )}
-          {authScreen === 'otp' && (
-            <OtpScreen
-              params={authParams}
-              onBack={() => handleAuthNavigate('register', authParams || undefined)}
-            />
-          )}
-          {authScreen === 'forgot' && (
-            <ForgotPasswordScreen
-              initialEmail={authParams?.email}
-              onBack={() => handleAuthNavigate('login')}
-              onDone={() => handleAuthNavigate('login')}
-            />
-          )}
-        </View>
+        <HomeScreen onSignIn={handleSignIn} onSignUp={handleSignUp} />
       </SafeAreaProvider>
     );
   }
 
-  // Incoming call full-screen
   if (callStatus === 'ringing') {
     const callerName = 'Incoming Call';
     return (
@@ -157,7 +178,6 @@ export default function App() {
     );
   }
 
-  // Active call in progress
   if (callStatus === 'calling' || callStatus === 'connecting' || callStatus === 'connected') {
     if (activeConversation) {
       return (
@@ -167,7 +187,6 @@ export default function App() {
             <CallScreen
               conversation={activeConversation}
               onEnded={() => {
-                // CallScreen handles cleanup
               }}
             />
           </View>
@@ -176,7 +195,6 @@ export default function App() {
     }
   }
 
-  // Main app
   const renderScreen = () => {
     const handleTabPress = (tab: TabKey) => {
       setActiveTab(tab);
@@ -184,6 +202,8 @@ export default function App() {
     };
 
     switch (screen.name) {
+      case 'home':
+        return <HomeScreen onSignIn={handleSignIn} onSignUp={handleSignUp} />;
       case 'messages':
         return (
           <MessagesScreen
