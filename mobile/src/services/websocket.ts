@@ -5,12 +5,34 @@ import { useCallStore } from '../store/callStore';
 
 type WsEventHandler = (data: any) => void;
 
+type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+
 class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldReconnect = false;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
+  private baseReconnectDelay = 1000;
+  private maxReconnectDelay = 30000;
   private handlers: Map<string, Set<WsEventHandler>> = new Map();
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private connectionState: ConnectionState = 'disconnected';
+  private stateListeners: Set<(state: ConnectionState) => void> = new Set();
+
+  getState(): ConnectionState {
+    return this.connectionState;
+  }
+
+  onStateChange(listener: (state: ConnectionState) => void) {
+    this.stateListeners.add(listener);
+    return () => this.stateListeners.delete(listener);
+  }
+
+  private setState(state: ConnectionState) {
+    this.connectionState = state;
+    this.stateListeners.forEach(l => l(state));
+  }
 
   connect() {
     const token = getAuthToken();
@@ -20,16 +42,20 @@ class WebSocketService {
     }
 
     this.shouldReconnect = true;
+    this.reconnectAttempts = 0;
     this.disconnect();
     this.open(token);
   }
 
   private open(token: string) {
+    this.setState('connecting');
     try {
       this.ws = new WebSocket(`${WS_URL}?token=${token}`);
 
       this.ws.onopen = () => {
         console.log('WebSocket connected');
+        this.reconnectAttempts = 0;
+        this.setState('connected');
         this.startHeartbeat();
       };
 
@@ -42,9 +68,10 @@ class WebSocketService {
         }
       };
 
-      this.ws.onclose = () => {
-        console.log('WebSocket closed');
+      this.ws.onclose = (event) => {
+        console.log('WebSocket closed', event.code, event.reason);
         this.stopHeartbeat();
+        this.setState('disconnected');
         if (this.shouldReconnect) {
           this.scheduleReconnect();
         }
@@ -55,24 +82,42 @@ class WebSocketService {
       };
     } catch (e) {
       console.error('WebSocket open error', e);
+      this.setState('disconnected');
       if (this.shouldReconnect) this.scheduleReconnect();
     }
   }
 
   private scheduleReconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.warn('Max reconnect attempts reached');
+      this.setState('disconnected');
+      return;
+    }
+
+    this.setState('reconnecting');
+    const delay = Math.min(
+      this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts) + Math.random() * 1000,
+      this.maxReconnectDelay
+    );
+    this.reconnectAttempts++;
+
+    console.log(`WebSocket reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+
     this.reconnectTimer = setTimeout(() => {
       const token = getAuthToken();
       if (token && this.shouldReconnect) {
         this.open(token);
       }
-    }, 3000);
+    }, delay);
   }
 
   private startHeartbeat() {
     this.stopHeartbeat();
     this.heartbeatInterval = setInterval(() => {
-      this.send({ type: 'ping' });
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.send({ type: 'ping' });
+      }
     }, 25000);
   }
 
@@ -87,13 +132,13 @@ class WebSocketService {
     const type = data.type;
     if (!type) return;
 
-    // Route to general handlers
     const handlers = this.handlers.get(type);
     if (handlers) {
-      handlers.forEach((handler) => handler(data));
+      handlers.forEach((handler) => {
+        try { handler(data); } catch (e) { console.error('Handler error:', e); }
+      });
     }
 
-    // Route to specific store handlers
     switch (type) {
       case 'new_message':
         useChatStore.getState().onNewMessage(data);
@@ -147,7 +192,6 @@ class WebSocketService {
     this.send({ type: 'message_read', conversation_id: conversationId, message_id: messageId });
   }
 
-  // WebRTC signaling helpers
   sendCallOffer(targetId: string, callType: 'audio' | 'video', sdp: string) {
     this.send({ type: 'call_offer', target_id: targetId, call_type: callType, sdp });
   }
@@ -187,6 +231,7 @@ class WebSocketService {
       this.ws.close();
       this.ws = null;
     }
+    this.setState('disconnected');
   }
 }
 

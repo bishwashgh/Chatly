@@ -31,6 +31,7 @@ import { TabKey } from './src/components/BottomNav';
 import { AuthScreenName, OtpParams } from './src/navigation/types';
 import { spacing } from './src/theme';
 import { PageTransition } from './src/components/PageTransition';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 type AppScreen =
   | { name: 'home' }
@@ -307,10 +308,12 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <View style={[styles.flex, { paddingHorizontal: spacing.gutter }]}>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-        {renderScreen()}
-      </View>
+      <ErrorBoundary>
+        <View style={[styles.flex, { paddingHorizontal: spacing.gutter }]}>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          {renderScreen()}
+        </View>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }
