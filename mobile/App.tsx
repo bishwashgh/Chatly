@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -30,6 +30,7 @@ import { IncomingCallOverlay } from './src/components/IncomingCallOverlay';
 import { TabKey } from './src/components/BottomNav';
 import { AuthScreenName, OtpParams } from './src/navigation/types';
 import { spacing } from './src/theme';
+import { PageTransition } from './src/components/PageTransition';
 
 type AppScreen =
   | { name: 'home' }
@@ -39,6 +40,11 @@ type AppScreen =
   | { name: 'profile' }
   | { name: 'chat'; conversation: Conversation }
   | { name: 'newchat' };
+
+function screenKey(screen: AppScreen | { name: AuthScreenName }) {
+  if ('conversation' in screen) return `chat-${screen.conversation.id}`;
+  return screen.name;
+}
 
 export default function App() {
   const { colors, isDark } = useTheme();
@@ -54,12 +60,6 @@ export default function App() {
   const [authScreen, setAuthScreen] = useState<AuthScreenName>('login');
   const [authParams, setAuthParams] = useState<OtpParams | null>(null);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
-  const screenFade = React.useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    screenFade.setValue(0);
-    Animated.timing(screenFade, { toValue: 1, duration: 260, useNativeDriver: true }).start();
-  }, [screen.name]);
 
   const handleAuthNavigate = (screen: AuthScreenName, params?: OtpParams) => {
     setAuthScreen(screen);
@@ -112,178 +112,204 @@ export default function App() {
     };
   }, []);
 
-  if (isLoading) {
-    return (
-      <SafeAreaProvider>
-        <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </SafeAreaProvider>
-    );
-  }
-
-  if (!isAuthenticated) {
-    if (authScreen !== 'home') {
-      return (
-        <SafeAreaProvider>
-          <View style={styles.loadingContainer}>
-            <StatusBar style={isDark ? 'light' : 'dark'} />
-            {authScreen === 'login' && <LoginScreen onNavigate={handleAuthNavigate} />}
-            {authScreen === 'register' && (
-              <RegisterScreen onNavigate={handleAuthNavigate} initialData={authParams?.pendingData} />
-            )}
-            {authScreen === 'otp' && (
-              <OtpScreen
-                params={authParams}
-                onBack={() => handleAuthNavigate('register', authParams || undefined)}
-              />
-            )}
-            {authScreen === 'forgot' && (
-              <ForgotPasswordScreen
-                initialEmail={authParams?.email}
-                onBack={() => handleAuthNavigate('login')}
-                onDone={() => handleAuthNavigate('login')}
-              />
-            )}
-          </View>
-        </SafeAreaProvider>
-      );
-    }
-
-    return (
-      <SafeAreaProvider>
-        <HomeScreen onSignIn={handleSignIn} onSignUp={handleSignUp} />
-      </SafeAreaProvider>
-    );
-  }
-
-  if (callStatus === 'ringing') {
-    const callerName = 'Incoming Call';
-    return (
-      <SafeAreaProvider>
-        <View style={styles.flex}>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-          <IncomingCallOverlay
-            callType={callType || 'audio'}
-            callerName={callerName}
-            onAccept={() => {
-              useCallStore.getState().acceptIncomingCall();
-            }}
-            onDecline={() => {
-              useCallStore.getState().rejectCall(remoteUserId || undefined);
-            }}
-          />
-        </View>
-      </SafeAreaProvider>
-    );
-  }
-
-  if (callStatus === 'calling' || callStatus === 'connecting' || callStatus === 'connected') {
-    if (activeConversation) {
-      return (
-        <SafeAreaProvider>
-          <View style={styles.flex}>
-            <StatusBar style={isDark ? 'light' : 'dark'} />
-            <CallScreen
-              conversation={activeConversation}
-              onEnded={() => {
-              }}
-            />
-          </View>
-        </SafeAreaProvider>
-      );
-    }
-  }
-
   const renderScreen = () => {
     const handleTabPress = (tab: TabKey) => {
       setActiveTab(tab);
       setScreen({ name: tab } as AppScreen);
     };
 
-    switch (screen.name) {
-      case 'home':
-        return <HomeScreen onSignIn={handleSignIn} onSignUp={handleSignUp} />;
-      case 'messages':
-        return (
-          <MessagesScreen
-            activeTab={activeTab}
-            onTabPress={handleTabPress}
-            onOpenChat={(conv) => {
-              setActiveConversation(conv);
-              setScreen({ name: 'chat', conversation: conv });
-            }}
-            onNewChat={() => setScreen({ name: 'newchat' })}
-          />
-        );
-      case 'groups':
-        return (
-          <GroupsScreen
-            activeTab={activeTab}
-            onTabPress={handleTabPress}
-            onOpenChat={(conv) => {
-              setActiveConversation(conv);
-              setScreen({ name: 'chat', conversation: conv });
-            }}
-          />
-        );
-      case 'discover':
-        return (
-          <PeopleScreen
-            activeTab={activeTab}
-            onTabPress={handleTabPress}
-            onOpenChat={(conv) => {
-              setActiveConversation(conv);
-              setScreen({ name: 'chat', conversation: conv });
-            }}
-          />
-        );
-      case 'profile':
-        return <ProfileScreen activeTab={activeTab} onTabPress={handleTabPress} />;
-      case 'newchat':
-        return (
-          <NewChatScreen
-            onBack={() => setScreen({ name: 'messages' })}
-            onOpenConversation={(conv) => {
-              setActiveConversation(conv);
-              setScreen({ name: 'chat', conversation: conv });
-            }}
-          />
-        );
-      case 'chat':
-        return (
-          <ChatScreen
-            conversation={screen.conversation}
-            onBack={() => setScreen({ name: 'messages' })}
-            onStartCall={async (type) => {
-              const other = screen.conversation.participants.find(
-                (p) => p.id !== useAuthStore.getState().user?.id
-              );
-              if (!other) return;
-              setActiveConversation(screen.conversation);
-              try {
-                await useCallStore.getState().startCall(other.id, type);
-              } catch (e: any) {
-                useCallStore.getState().resetCall();
-                Alert.alert('Call unavailable', e.message || 'Could not start the call.');
-              }
-            }}
-            onOpenProfile={() => {}}
-          />
-        );
-      default:
-        return null;
+    const currentKey = isAuthenticated ? screenKey(screen) : `auth-${authScreen}`;
+
+    if (isLoading) {
+      return (
+        <PageTransition key="loading" transition="fade">
+          <SafeAreaProvider>
+            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+              <StatusBar style={isDark ? 'light' : 'dark'} />
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          </SafeAreaProvider>
+        </PageTransition>
+      );
     }
+
+    if (!isAuthenticated) {
+      if (authScreen !== 'home') {
+        return (
+          <PageTransition key={currentKey} transition="slide">
+            <SafeAreaProvider>
+              <View style={styles.loadingContainer}>
+                <StatusBar style={isDark ? 'light' : 'dark'} />
+                {authScreen === 'login' && <LoginScreen onNavigate={handleAuthNavigate} />}
+                {authScreen === 'register' && (
+                  <RegisterScreen onNavigate={handleAuthNavigate} initialData={authParams?.pendingData} />
+                )}
+                {authScreen === 'otp' && (
+                  <OtpScreen
+                    params={authParams}
+                    onBack={() => handleAuthNavigate('register', authParams || undefined)}
+                  />
+                )}
+                {authScreen === 'forgot' && (
+                  <ForgotPasswordScreen
+                    initialEmail={authParams?.email}
+                    onBack={() => handleAuthNavigate('login')}
+                    onDone={() => handleAuthNavigate('login')}
+                  />
+                )}
+              </View>
+            </SafeAreaProvider>
+          </PageTransition>
+        );
+      }
+
+      return (
+        <PageTransition key={currentKey} transition="slide">
+          <SafeAreaProvider>
+            <HomeScreen onSignIn={handleSignIn} onSignUp={handleSignUp} />
+          </SafeAreaProvider>
+        </PageTransition>
+      );
+    }
+
+    if (callStatus === 'ringing') {
+      const callerName = 'Incoming Call';
+      return (
+        <PageTransition key="call-ringing" transition="slide-up">
+          <SafeAreaProvider>
+            <View style={styles.flex}>
+              <StatusBar style={isDark ? 'light' : 'dark'} />
+              <IncomingCallOverlay
+                callType={callType || 'audio'}
+                callerName={callerName}
+                onAccept={() => {
+                  useCallStore.getState().acceptIncomingCall();
+                }}
+                onDecline={() => {
+                  useCallStore.getState().rejectCall(remoteUserId || undefined);
+                }}
+              />
+            </View>
+          </SafeAreaProvider>
+        </PageTransition>
+      );
+    }
+
+    if (callStatus === 'calling' || callStatus === 'connecting' || callStatus === 'connected') {
+      if (activeConversation) {
+        return (
+          <PageTransition key={`call-${activeConversation.id}`} transition="slide-up">
+            <SafeAreaProvider>
+              <View style={styles.flex}>
+                <StatusBar style={isDark ? 'light' : 'dark'} />
+                <CallScreen
+                  conversation={activeConversation}
+                  onEnded={() => {
+                  }}
+                />
+              </View>
+            </SafeAreaProvider>
+          </PageTransition>
+        );
+      }
+    }
+
+    return (
+      <PageTransition key={currentKey} transition="slide">
+        <SafeAreaProvider>
+          <View style={styles.flex}>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+            {(() => {
+              const handleTabPress = (tab: TabKey) => {
+                setActiveTab(tab);
+                setScreen({ name: tab } as AppScreen);
+              };
+
+              switch (screen.name) {
+                case 'home':
+                  return <HomeScreen onSignIn={handleSignIn} onSignUp={handleSignUp} />;
+                case 'messages':
+                  return (
+                    <MessagesScreen
+                      activeTab={activeTab}
+                      onTabPress={handleTabPress}
+                      onOpenChat={(conv) => {
+                        setActiveConversation(conv);
+                        setScreen({ name: 'chat', conversation: conv });
+                      }}
+                      onNewChat={() => setScreen({ name: 'newchat' })}
+                    />
+                  );
+                case 'groups':
+                  return (
+                    <GroupsScreen
+                      activeTab={activeTab}
+                      onTabPress={handleTabPress}
+                      onOpenChat={(conv) => {
+                        setActiveConversation(conv);
+                        setScreen({ name: 'chat', conversation: conv });
+                      }}
+                    />
+                  );
+                case 'discover':
+                  return (
+                    <PeopleScreen
+                      activeTab={activeTab}
+                      onTabPress={handleTabPress}
+                      onOpenChat={(conv) => {
+                        setActiveConversation(conv);
+                        setScreen({ name: 'chat', conversation: conv });
+                      }}
+                    />
+                  );
+                case 'profile':
+                  return <ProfileScreen activeTab={activeTab} onTabPress={handleTabPress} />;
+                case 'newchat':
+                  return (
+                    <NewChatScreen
+                      onBack={() => setScreen({ name: 'messages' })}
+                      onOpenConversation={(conv) => {
+                        setActiveConversation(conv);
+                        setScreen({ name: 'chat', conversation: conv });
+                      }}
+                    />
+                  );
+                case 'chat':
+                  return (
+                    <ChatScreen
+                      conversation={screen.conversation}
+                      onBack={() => setScreen({ name: 'messages' })}
+                      onStartCall={async (type) => {
+                        const other = screen.conversation.participants.find(
+                          (p) => p.id !== useAuthStore.getState().user?.id
+                        );
+                        if (!other) return;
+                        setActiveConversation(screen.conversation);
+                        try {
+                          await useCallStore.getState().startCall(other.id, type);
+                        } catch (e: any) {
+                          useCallStore.getState().resetCall();
+                          Alert.alert('Call unavailable', e.message || 'Could not start the call.');
+                        }
+                      }}
+                      onOpenProfile={() => {}}
+                    />
+                  );
+                default:
+                  return null;
+              }
+            })()}
+          </View>
+        </SafeAreaProvider>
+      </PageTransition>
+    );
   };
 
   return (
     <SafeAreaProvider>
       <View style={[styles.flex, { paddingHorizontal: spacing.gutter }]}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        <Animated.View style={[styles.flex, { opacity: screenFade }]}>
-          {renderScreen()}
-        </Animated.View>
+        {renderScreen()}
       </View>
     </SafeAreaProvider>
   );
