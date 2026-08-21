@@ -173,13 +173,15 @@ const FluidGradientButton = ({
   style?: StyleProp<ViewStyle>; 
   disabled?: boolean 
 }) => {
-  const shimmerAnim = useRef(new Animated.Value(-1)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const width = useRef(0);
+  
   useEffect(() => {
     if (!disabled) {
       const loop = () => {
-        shimmerAnim.setValue(-1);
+        shimmerAnim.setValue(0);
         Animated.timing(shimmerAnim, {
-          toValue: 2,
+          toValue: 1,
           duration: 2000,
           easing: Easing.out(Easing.quad),
           useNativeDriver: false,
@@ -192,8 +194,8 @@ const FluidGradientButton = ({
   }, [disabled]);
 
   const shimmerPos = shimmerAnim.interpolate({
-    inputRange: [-1, 0, 1, 2],
-    outputRange: ['-100%', '0%', '100%', '200%'],
+    inputRange: [0, 0.5, 1],
+    outputRange: [-100, 0, 100], // Use pixel values, not percentages
   });
 
   return (
