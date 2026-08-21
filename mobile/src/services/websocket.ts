@@ -44,7 +44,8 @@ class WebSocketService {
     this.shouldReconnect = true;
     this.reconnectAttempts = 0;
     this.disconnect();
-    this.open(token);
+    // Defer connection to next tick to avoid blocking startup
+    setTimeout(() => this.open(token), 0);
   }
 
   private open(token: string) {
