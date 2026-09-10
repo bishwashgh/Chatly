@@ -32,7 +32,7 @@ You just point it at the deployed API (see bottom).
 `chatly-api` commands:
 
 - Build: `npm ci && npx prisma generate && npm run build`
-- Pre-deploy: `npx prisma migrate deploy` (runs pending migrations against Render Postgres)
+- Pre-deploy: `npx prisma migrate deploy` (runs pending migrations against Render Postgres; on a db-push era DB the startup script baselines first)
 - Start: `node dist/src/main.js`
 - Health check path: `/graphql`
 
@@ -53,14 +53,16 @@ and the **Internal Connection String** from the Key Value service into
   `prisma_migrations` tracking table, the startup runs
   `prisma/migrations/bootstrap.sh` first. This script:
 
-  1. Creates the `prisma_migrations` table if it doesn't exist.
-  2. Inserts a row marking `001_initial` as already applied (using the
-     SHA-256 checksum of the migration SQL).
+  1. Detects a non-empty schema without a `prisma_migrations` table
+     (a database from the `db push` era).
+  2. Baselines it with `npx prisma migrate resolve --applied 001_initial` —
+     Prisma itself records the migration as applied (with the correct
+     checksum). Safe: no data is dropped.
   3. Runs `npx prisma migrate deploy` to apply any **new** migrations.
 
-  This means the first deploy with this setup bootstraps the tracking
-  table safely — no data is dropped. After that, every deploy just runs
-  `migrate deploy` normally.
+  This means the first deploy with this setup adopts the existing database
+  using Prisma's supported baseline flow. After that, every deploy just
+  runs `migrate deploy` normally.
 
   When you change `schema.prisma`, generate a new migration locally with
   `npx prisma migrate dev` (or write it manually), commit the new folder
@@ -82,6 +84,7 @@ The mobile app reads env vars at build time (Expo), not runtime:
   subscriptions drop while asleep.
 - Free Postgres expires after 30 days — upgrade or back up before then.
 - The startup runs `prisma/migrations/bootstrap.sh` on every deploy.
-  On the first deploy it creates the `prisma_migrations` table and marks
-  the initial migration as applied (safe — no data dropped). On subsequent
-  deploys it's a no-op and only `prisma migrate deploy` runs.
+  On the first deploy it baselines a pre-existing (db-push era) database
+  with `prisma migrate resolve --applied 001_initial` (safe — no data
+  dropped). On subsequent deploys it's a no-op and only
+  `prisma migrate deploy` runs.

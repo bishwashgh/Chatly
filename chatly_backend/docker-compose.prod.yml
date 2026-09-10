@@ -48,9 +48,8 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/chatly?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      # Migration-based deploy: bootstrap.sh creates prisma_migrations table
-      # (if missing) + marks the initial migration, then runs migrate deploy
-      INITIAL_MIGRATION_CHECKSUM: dc85577f21e1c75200e5b90cc8e745dad994a42bad42e79b072c83599d41400a
+      # Migration-based deploy: bootstrap.sh baselines an existing (db-push era)
+      # database via `prisma migrate resolve`, then runs migrate deploy
     # secrets are injected from .env (JWT, Google, LiveKit, Cloudinary)
     env_file:
       - .env

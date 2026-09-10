@@ -29,5 +29,5 @@ RUN chmod +x ./prisma/migrations/bootstrap.sh
 
 EXPOSE 4000
 
-# Bootstrap prisma_migrations table (if missing) then apply migrations
+# Baseline migration history (db-push era DBs) then apply pending migrations
 CMD ["sh", "-c", "sh prisma/migrations/bootstrap.sh && node dist/main.js"]
