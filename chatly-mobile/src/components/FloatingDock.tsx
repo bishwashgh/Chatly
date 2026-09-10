@@ -1,14 +1,15 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MessageCircle, UserPlus } from 'lucide-react-native';
+import { MessageCircle, UserRound, UsersRound } from 'lucide-react-native';
 import { colors, radii, shadows, spacing } from '../lib/theme';
 
-export type DockTab = 'chats' | 'friends';
+export type DockTab = 'chats' | 'friends' | 'profile';
 
 const TABS: { key: DockTab; label: string; Icon: any }[] = [
   { key: 'chats', label: 'Chats', Icon: MessageCircle },
-  { key: 'friends', label: 'Friends', Icon: UserPlus },
+  { key: 'friends', label: 'Friends', Icon: UsersRound },
+  { key: 'profile', label: 'Profile', Icon: UserRound },
 ];
 
 const DOCK_HEIGHT = 60;
@@ -30,7 +31,7 @@ export function FloatingDock({ active, navigation }: FloatingDockProps) {
             accessibilityState={{ selected: isActive }}
             accessibilityLabel={label}
             style={({ pressed }) => [styles.tab, isActive && styles.tabActive, pressed && styles.pressed]}
-            onPress={() => navigation.navigate(key === 'chats' ? 'Conversations' : 'Friends')}
+            onPress={() => navigation.navigate(key === 'chats' ? 'Conversations' : key === 'friends' ? 'Friends' : 'Profile')}
           >
             <Icon size={19} color={isActive ? '#FFFFFF' : colors.dockInactive} strokeWidth={isActive ? 2.5 : 2} />
             <Text style={[styles.label, isActive && styles.labelActive]}>{label}</Text>
@@ -50,7 +51,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: 'rgba(23,21,33,0.94)',
+    backgroundColor: 'rgba(16,42,43,0.94)',
     borderRadius: radii.xl,
     padding: 5,
     borderWidth: 1,
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderRadius: radii.lg,
   },
-  tabActive: { backgroundColor: colors.dockActive, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  tabActive: { backgroundColor: colors.primary, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
   label: { color: colors.dockInactive, fontSize: 13, fontWeight: '600' },
   labelActive: { color: '#FFFFFF', fontWeight: '800' },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },

@@ -5,11 +5,13 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { ConversationsScreen } from '../screens/ConversationsScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { ChatScreen } from '../screens/ChatScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { useAuth } from '../lib/AuthContext';
 
 export type RootStackParamList = {
   Conversations: undefined;
   Friends: undefined;
+  Profile: undefined;
   Chat: {
     conversationId: string;
     title?: string;
@@ -36,11 +38,12 @@ export function RootNavigator() {
             headerShown: false,
             animation: 'fade_from_bottom',
             animationDuration: 240,
-            contentStyle: { backgroundColor: '#F7F6FB' },
+            contentStyle: { backgroundColor: '#F4FAF9' },
           }}
         >
           <Stack.Screen name="Conversations" component={ConversationsScreen} />
           <Stack.Screen name="Friends" component={FriendsScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="Chat">
             {({ route, navigation }) => (
               <ChatScreen

@@ -1,57 +1,57 @@
 export const colors = {
-  // Warm, soft canvas
-  bg: '#F7F6FB',
-  bgDeep: '#EFECF8',
-  blobPink: '#F9DFF0',
-  blobLavender: '#DCD2FF',
-  blobGray: '#E8E6F1',
+  // Calm, ocean-inspired canvas
+  bg: '#F4FAF9',
+  bgDeep: '#E7F4F1',
+  blobPink: '#FCE8DE',
+  blobLavender: '#CDEFEA',
+  blobGray: '#E4EEF0',
   // Cards & surfaces
   surface: '#FFFFFF',
-  surfaceAlt: '#F4F2FA',
-  border: 'rgba(92,68,168,0.14)',
-  borderSoft: 'rgba(20,16,44,0.07)',
+  surfaceAlt: '#EFF8F6',
+  border: 'rgba(19,112,105,0.15)',
+  borderSoft: 'rgba(15,38,43,0.08)',
   // Accents
-  primary: '#6546D7',
-  primaryDark: '#4C32B1',
-  primaryLight: '#A68BFF',
-  lavender: '#EDE8FF',
-  accent: '#8268E8',
+  primary: '#0F766E',
+  primaryDark: '#115E59',
+  primaryLight: '#2CB7A9',
+  lavender: '#DDF5F1',
+  accent: '#159A91',
   danger: '#E04C64',
   success: '#20B978',
   // Dark floating accents
-  charcoal: '#171521',
-  dockActive: '#302A42',
-  dockInactive: '#A9A4B8',
+  charcoal: '#102A2B',
+  dockActive: '#0F766E',
+  dockInactive: '#9BB1B1',
   // Typography
-  textPrimary: '#191629',
-  textSecondary: '#706B82',
-  textMuted: 'rgba(112,107,130,0.68)',
+  textPrimary: '#102A2B',
+  textSecondary: '#5C7071',
+  textMuted: 'rgba(92,112,113,0.72)',
 };
 
 export const gradients = {
   primary: [colors.primaryDark, colors.primaryLight] as const,
-  header: ['#FFFFFF', '#F7F6FB'] as const,
-  bubbleMine: ['#EDE8FF', '#E5DEFF'] as const,
-  login: ['#F9DFF0', '#DDD3FF', '#F7F6FB'] as const,
+  header: ['#FFFFFF', '#F4FAF9'] as const,
+  bubbleMine: ['#DDF5F1', '#CDEFEA'] as const,
+  login: ['#FCE8DE', '#CDEFEA', '#F4FAF9'] as const,
 };
 
 export const shadows = {
   sm: {
-    shadowColor: '#242039',
+    shadowColor: '#164447',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.07,
     shadowRadius: 10,
     elevation: 2,
   },
   md: {
-    shadowColor: '#242039',
+    shadowColor: '#164447',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.10,
     shadowRadius: 18,
     elevation: 4,
   },
   lg: {
-    shadowColor: '#242039',
+    shadowColor: '#164447',
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.14,
     shadowRadius: 30,

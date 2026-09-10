@@ -7,7 +7,7 @@ function Blob({ style, color }: { style: any; color: string }) {
   return (
     <View pointerEvents="none" style={[styles.blobWrap, style]}>
       <LinearGradient
-        colors={[color, 'rgba(247,246,251,0)']}
+        colors={[color, 'rgba(244,250,249,0)']}
         style={styles.blob}
       />
     </View>
@@ -19,7 +19,7 @@ export function AmbientBackground() {
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <View style={styles.base} />
       <LinearGradient
-        colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
+        colors={['rgba(255,255,255,0.92)', 'rgba(255,255,255,0)']}
         style={styles.topWash}
       />
       <Blob style={styles.blobTopRight} color={colors.blobPink} />

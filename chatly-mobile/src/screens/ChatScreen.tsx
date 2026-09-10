@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lavender,
     borderBottomRightRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(101,70,215,0.12)',
+    borderColor: 'rgba(15,118,110,0.14)',
   },
   bubbleOther: {
     backgroundColor: colors.surface,
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   },
   bubbleText: { color: colors.textPrimary, fontSize: 15, lineHeight: 20 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, alignSelf: 'flex-end' },
-  metaTextMine: { color: 'rgba(124,58,237,0.65)', fontSize: 11 },
+  metaTextMine: { color: 'rgba(15,118,110,0.72)', fontSize: 11 },
   metaTextOther: { color: colors.textMuted, fontSize: 11 },
   reactionRow: { flexDirection: 'row', gap: 2, marginTop: 2 },
   reactionEmoji: { fontSize: 14 },
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   },
   quickReactionEmoji: { fontSize: 20 },
   mediaImage: { width: '100%', maxWidth: 220, height: 220, borderRadius: radii.md, marginBottom: 4 },
-  mediaVideo: { width: '100%', maxWidth: 220, height: 260, borderRadius: radii.md, marginBottom: 4, backgroundColor: '#000' },
+  mediaVideo: { width: '100%', maxWidth: 220, height: 260, borderRadius: radii.md, marginBottom: 4, backgroundColor: '#102A2B' },
   composerWrap: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.xs,
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(101,70,215,0.18)',
+    borderColor: 'rgba(15,118,110,0.18)',
     ...shadows.md,
   },
   composerIconBtn: {

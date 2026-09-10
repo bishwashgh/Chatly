@@ -25,9 +25,9 @@ type Tab = 'friends' | 'requests' | 'add';
 type Status = 'FRIENDS' | 'INCOMING' | 'OUTGOING';
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'friends', label: 'Friends' },
+  { key: 'friends', label: 'My Friends' },
   { key: 'requests', label: 'Requests' },
-  { key: 'add', label: 'Add' },
+  { key: 'add', label: 'Suggestions' },
 ];
 
 export function FriendsScreen({ navigation }: any) {
@@ -278,7 +278,7 @@ export function FriendsScreen({ navigation }: any) {
     );
   };
 
-  const renderQueryState = (empty: React.ReactNode) => {
+  const renderQueryState = (empty: React.ReactElement): React.ReactElement => {
     if (loading) {
       return (
         <View style={styles.stateBox}>
@@ -347,7 +347,7 @@ export function FriendsScreen({ navigation }: any) {
           contentContainerStyle={[styles.listContent, { paddingBottom: 96 + insets.bottom }]}
           ListEmptyComponent={renderQueryState(
             <Text style={styles.empty}>
-              No friends yet.{'\n'}Go to the Add tab and search for people to connect with.
+              No friends yet.{'\n'}Open Suggestions to find people and start connecting.
             </Text>
           )}
           ListFooterComponent={

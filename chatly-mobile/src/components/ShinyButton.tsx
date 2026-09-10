@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Pressable, Text, StyleSheet, ViewStyle, ActivityIndicator, View } from 'react-native';
+import { Chrome } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { gradients, shadows } from '../lib/theme';
@@ -48,7 +49,16 @@ export function ShinyButton({ label, onPress, style, disabled }: ShinyButtonProp
         <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
           <Animated.View pointerEvents="none" style={[styles.shine, shineStyle]} />
           <View style={styles.highlight} />
-          {disabled ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.label}>{label}</Text>}
+          {disabled ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <View style={styles.content}>
+              <View style={styles.googleMark}>
+                <Chrome size={19} color="#FFFFFF" strokeWidth={2.5} />
+              </View>
+              <Text style={styles.label}>{label}</Text>
+            </View>
+          )}
         </LinearGradient>
       </Pressable>
     </View>
@@ -64,8 +74,8 @@ const styles = StyleSheet.create({
     left: -9,
     right: -9,
     borderRadius: 999,
-    backgroundColor: '#A68BFF',
-    shadowColor: '#8D6CF0',
+    backgroundColor: '#2CB7A9',
+    shadowColor: '#159A91',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.85,
     shadowRadius: 22,
@@ -77,5 +87,7 @@ const styles = StyleSheet.create({
   highlight: { position: 'absolute', top: 0, left: 18, right: 18, height: 1, backgroundColor: 'rgba(255,255,255,0.62)' },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.92 },
   disabled: { opacity: 0.62 },
+  content: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  googleMark: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.16)' },
   label: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.1 },
 });
