@@ -228,10 +228,10 @@ export function ProfileModal({ visible, onClose, navigation }: ProfileModalProps
 
               <View style={styles.divider} />
               <Text style={styles.settingsHeading}>Settings</Text>
-              <SettingRow icon={<Lock size={17} color={colors.textSecondary} />} label="Privacy" navigation={navigation} />
-              <SettingRow icon={<Bell size={17} color={colors.textSecondary} />} label="Notifications" navigation={navigation} />
-              <SettingRow icon={<PhoneCall size={17} color={colors.textSecondary} />} label="Call history" navigation={navigation} />
-              <SettingRow icon={<CircleHelp size={17} color={colors.textSecondary} />} label="Help & Support" navigation={navigation} />
+              <SettingRow icon={<Lock size={17} color={colors.textSecondary} />} label="Privacy" navigation={navigation} onClose={onClose} />
+              <SettingRow icon={<Bell size={17} color={colors.textSecondary} />} label="Notifications" navigation={navigation} onClose={onClose} />
+              <SettingRow icon={<PhoneCall size={17} color={colors.textSecondary} />} label="Call history" navigation={navigation} onClose={onClose} />
+              <SettingRow icon={<CircleHelp size={17} color={colors.textSecondary} />} label="Help & Support" navigation={navigation} onClose={onClose} />
               <Pressable style={({ pressed }) => [styles.accountAction, pressed && styles.pressed]} onPress={handleLogout} disabled={actionDisabled}>
                 {loggingOut ? <ActivityIndicator size="small" color={colors.textSecondary} /> : <LogOut size={17} color={colors.textSecondary} />}
                 <Text style={styles.accountActionText}>Log out</Text>
@@ -248,10 +248,27 @@ export function ProfileModal({ visible, onClose, navigation }: ProfileModalProps
   );
 }
 
-function SettingRow({ icon, label, navigation }: { icon: React.ReactNode; label: string; navigation?: any }) {
-  return <Pressable style={({ pressed }) => [styles.settingRow, pressed && styles.pressed]} onPress={() => label === 'Call history' && navigation ? navigation.navigate('CallLog') : Alert.alert(label, `${label} settings are coming soon.`)}>
-    {icon}<Text style={styles.settingLabel}>{label}</Text><ChevronRight size={16} color={colors.textMuted} />
-  </Pressable>;
+function SettingRow({ icon, label, navigation, onClose }: { icon: React.ReactNode; label: string; navigation?: any; onClose?: () => void }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.settingRow, pressed && styles.pressed]}
+      onPress={() => {
+        if (label === 'Call history' && navigation) {
+          onClose?.();
+          navigation.navigate('CallLog');
+        } else if ((label === 'Privacy' || label === 'Notifications') && navigation) {
+          onClose?.();
+          navigation.navigate('Settings');
+        } else {
+          Alert.alert(label, `${label} settings are coming soon.`);
+        }
+      }}
+    >
+      {icon}
+      <Text style={styles.settingLabel}>{label}</Text>
+      <ChevronRight size={16} color={colors.textMuted} />
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -283,7 +300,7 @@ const styles = StyleSheet.create({
   input: { backgroundColor: 'rgba(239,248,246,0.86)', borderRadius: radii.full, paddingHorizontal: spacing.md, paddingVertical: 12, color: colors.textPrimary, fontSize: 15, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.border },
   bioInput: { borderRadius: radii.md, minHeight: 76, textAlignVertical: 'top' },
   username: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.lg },
-  saveBtn: { backgroundColor: colors.charcoal, borderRadius: radii.full, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', ...shadows.md },
+  saveBtn: { backgroundColor: colors.primary, borderRadius: radii.full, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', ...shadows.md },
   saveText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   securityNote: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: spacing.md },
   securityText: { flex: 1, color: colors.textMuted, fontSize: 11, lineHeight: 16 },

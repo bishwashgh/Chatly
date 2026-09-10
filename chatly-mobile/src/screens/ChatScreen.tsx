@@ -37,6 +37,7 @@ import {
   RefreshCw,
   Reply,
   Trash2,
+  Shield,
 } from 'lucide-react-native';
 import {
   MESSAGES_QUERY,
@@ -360,10 +361,7 @@ export function ChatScreen({
               ]}
             >
               {isMine ? (
-                <LinearGradient
-                  colors={['#4A6CF7', '#34C1B0']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                <View
                   style={[
                     styles.bubble,
                     styles.bubbleMine,
@@ -376,23 +374,24 @@ export function ChatScreen({
                     {item.isRead ? (
                       <CheckCheck size={13} color="#FFFFFF" />
                     ) : item.isDelivered ? (
-                      <Check size={13} color="rgba(255,255,255,0.76)" />
+                      <Check size={13} color="rgba(255,255,255,0.85)" />
                     ) : (
-                      <Check size={13} color="rgba(255,255,255,0.48)" />
+                      <Check size={13} color="rgba(255,255,255,0.55)" />
                     )}
                   </View>
-                </LinearGradient>
+                </View>
               ) : (
                 <View
                   style={[
                     styles.bubble,
                     styles.bubbleOther,
+                    isDark && styles.bubbleOtherDark,
                     isNextSameSender && { borderBottomLeftRadius: 18 },
                   ]}
                 >
                   {renderMessageContent(item)}
                   <View style={styles.metaRow}>
-                    <Text style={styles.metaTextOther}>{formatTime(item.createdAt)}</Text>
+                    <Text style={[styles.metaTextOther, isDark && styles.textSecondaryDark]}>{formatTime(item.createdAt)}</Text>
                   </View>
                 </View>
               )}
@@ -421,26 +420,60 @@ export function ChatScreen({
     >
       <AmbientBackground />
 
-      <BlurView
-        intensity={85}
-        tint={isDark ? 'dark' : 'light'}
-        style={[styles.header, isDark && styles.headerDark, { paddingTop: Math.max(insets.top, spacing.sm) }]}
-      >
-        <Pressable style={styles.headerIconBtn} onPress={() => navigation?.goBack()}>
-          <ChevronLeft size={22} color={colors.textPrimary} />
+      {/* Top Navigation Bar */}
+      <View style={[styles.chatTopBar, isDark && styles.chatTopBarDark, { paddingTop: insets.top + 6 }]}>
+        <Pressable style={styles.backLink} onPress={() => navigation?.goBack()} hitSlop={8}>
+          <ChevronLeft size={22} color={isDark ? '#72FE88' : colors.primary} />
+          <Text style={[styles.backLinkText, isDark && styles.backLinkTextDark]}>Conversation</Text>
         </Pressable>
-        <Avatar uri={peerAvatarUrl} name={peerName} size={38} isOnline={peerIsOnline} />
-        <View style={styles.headerText}>
-          <Text style={styles.headerName} numberOfLines={1}>{peerName ?? 'Chat'}</Text>
-          <Text style={styles.headerStatus}>{peerTyping ? 'Typing…' : peerIsOnline ? 'Online' : 'Offline'}</Text>
+        <Pressable onPress={() => navigation?.navigate('Settings')}>
+          <Avatar uri={peerAvatarUrl} name={peerName} size={36} isOnline={peerIsOnline} />
+        </Pressable>
+      </View>
+
+      {/* FriendGate™ Protected Security Banner */}
+      <View style={[styles.securityBanner, isDark && styles.securityBannerDark]}>
+        <View style={styles.securityBannerLeft}>
+          <Shield size={14} color="#0058BC" strokeWidth={2.2} />
+          <Text style={styles.securityBannerTitle}>FriendGate™ Protected</Text>
         </View>
-        <Pressable style={styles.headerIconBtn} onPress={() => handleCall('AUDIO')}>
-          <Phone size={18} color={colors.textPrimary} />
-        </Pressable>
-        <Pressable style={styles.headerIconBtn} onPress={() => handleCall('VIDEO')}>
-          <VideoIcon size={18} color={colors.textPrimary} />
-        </Pressable>
-      </BlurView>
+        <Text style={styles.securityBannerSub}>Mutual friends verified</Text>
+      </View>
+
+      {/* User Info Bar with Call Actions */}
+      <View style={[styles.userInfoBar, isDark && styles.userInfoBarDark]}>
+        <View style={styles.userInfoLeft}>
+          <Avatar uri={peerAvatarUrl} name={peerName} size={42} isOnline={peerIsOnline} />
+          <View style={styles.userNameCol}>
+            <Text style={[styles.chatHeaderName, isDark && styles.textDark]} numberOfLines={1}>
+              {peerName ?? 'Chat'}
+            </Text>
+            <View style={styles.activeRow}>
+              <View style={[styles.pulsingDot, !peerIsOnline && styles.offlineDot]} />
+              <Text style={[styles.activeStatusText, isDark && styles.textSecondaryDark]}>
+                {peerTyping ? 'Typing…' : peerIsOnline ? 'Active now' : 'Offline'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.callBtnsRow}>
+          <Pressable
+            style={[styles.circleActionBtn, isDark && styles.circleActionBtnDark]}
+            onPress={() => handleCall('AUDIO')}
+            accessibilityLabel="Voice Call"
+          >
+            <Phone size={17} color={isDark ? '#F1F0F5' : '#3D4A3C'} />
+          </Pressable>
+          <Pressable
+            style={[styles.circleActionBtn, isDark && styles.circleActionBtnDark]}
+            onPress={() => handleCall('VIDEO')}
+            accessibilityLabel="Video Call"
+          >
+            <VideoIcon size={17} color={isDark ? '#F1F0F5' : '#3D4A3C'} />
+          </Pressable>
+        </View>
+      </View>
 
       <FlashList
         ref={listRef}
@@ -474,33 +507,44 @@ export function ChatScreen({
         }
       />
 
-      <View style={[styles.composerWrap, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
-        <View style={[styles.composer, { maxWidth: screenWidth - spacing.md * 2 }]}>
-          <Pressable onPress={() => setAttachmentVisible(true)} style={styles.composerIconBtn}>
-            <Plus size={22} color={colors.primary} strokeWidth={2.5} />
+      <View style={[styles.composerWrap, isDark && styles.composerWrapDark, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+        <View style={styles.composerRow}>
+          <Pressable
+            onPress={() => setAttachmentVisible(true)}
+            style={[styles.composerCircleBtn, isDark && styles.composerCircleBtnDark]}
+          >
+            <Plus size={20} color={isDark ? '#F1F0F5' : '#3D4A3C'} strokeWidth={2.4} />
           </Pressable>
-          <Pressable onPress={() => setPickerVisible(true)} style={styles.composerIconBtn}>
-            <Smile size={22} color={colors.textSecondary} />
-          </Pressable>
-          <TextInput
-            style={styles.input}
-            placeholder="Message"
-            placeholderTextColor={colors.textMuted}
-            value={draft}
-            onChangeText={handleDraftChange}
-            multiline
-          />
+
+          <View style={[styles.inputPill, isDark && styles.inputPillDark]}>
+            <TextInput
+              style={[styles.input, isDark && styles.inputDark]}
+              placeholder="Message..."
+              placeholderTextColor="#6D7B6B"
+              value={draft}
+              onChangeText={handleDraftChange}
+              multiline
+            />
+            <Pressable onPress={() => setPickerVisible(true)} hitSlop={6}>
+              <Smile size={20} color="#6D7B6B" />
+            </Pressable>
+          </View>
+
           {draft.trim() ? (
-            <Pressable style={styles.sendBtn} onPress={handleSend}>
-              <Send size={17} color="#fff" />
+            <Pressable style={styles.sendCircleBtn} onPress={handleSend}>
+              <Send size={17} color="#FFFFFF" />
             </Pressable>
           ) : (
             <Pressable
-              style={[styles.sendBtn, isRecording && styles.recordingBtn]}
+              style={[
+                styles.composerCircleBtn,
+                isDark && styles.composerCircleBtnDark,
+                isRecording && styles.recordingBtn,
+              ]}
               onPressIn={startRecording}
               onPressOut={handleVoiceSend}
             >
-              <Mic size={17} color="#fff" />
+              <Mic size={19} color={isRecording ? '#fff' : (isDark ? '#F1F0F5' : '#3D4A3C')} />
             </Pressable>
           )}
         </View>
@@ -531,71 +575,163 @@ export function ChatScreen({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: {
+  chatTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 11,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSoft,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingBottom: 8,
+    backgroundColor: '#FFFFFF',
   },
-  headerDark: { backgroundColor: 'rgba(28,28,30,0.94)' },
-  headerText: { flex: 1 },
-  headerName: { color: colors.textPrimary, fontWeight: '800', fontSize: 16 },
-  headerStatus: { color: colors.textSecondary, fontSize: 12 },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.full,
-    backgroundColor: colors.surface,
+  chatTopBarDark: {
+    backgroundColor: '#1A1B1F',
+  },
+  backLink: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.sm,
+    gap: 4,
   },
-  listContent: { paddingVertical: spacing.md, paddingBottom: spacing.lg + 72 },
-  messageRow: { paddingHorizontal: spacing.lg, paddingVertical: 4 },
-  dayWrap: { alignItems: 'center', paddingVertical: spacing.sm },
-  dayChip: {
-    color: colors.textSecondary,
+  backLinkText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  backLinkTextDark: {
+    color: '#72FE88',
+  },
+  securityBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(216, 226, 255, 0.45)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 88, 188, 0.08)',
+  },
+  securityBannerDark: {
+    backgroundColor: '#17243B',
+    borderBottomColor: 'rgba(216, 226, 255, 0.10)',
+  },
+  securityBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  securityBannerTitle: {
     fontSize: 12,
     fontWeight: '600',
-    backgroundColor: colors.surface,
+    color: '#004493',
+  },
+  securityBannerSub: {
+    fontSize: 11.5,
+    color: 'rgba(0, 68, 147, 0.8)',
+  },
+  userInfoBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingVertical: 5,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(26, 27, 31, 0.06)',
+    ...shadows.sm,
+  },
+  userInfoBarDark: {
+    backgroundColor: '#1A1B1F',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  userInfoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  userNameCol: {
+    flex: 1,
+  },
+  chatHeaderName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1B1F',
+  },
+  activeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 2,
+  },
+  pulsingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#34C759',
+  },
+  offlineDot: {
+    backgroundColor: '#6D7B6B',
+  },
+  activeStatusText: {
+    fontSize: 12,
+    color: '#3D4A3C',
+  },
+  callBtnsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  circleActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#EEEDF3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleActionBtnDark: {
+    backgroundColor: '#28292E',
+  },
+  listContent: { paddingVertical: spacing.md, paddingBottom: spacing.lg + 72 },
+  messageRow: { paddingHorizontal: spacing.md, paddingVertical: 4 },
+  dayWrap: { alignItems: 'center', paddingVertical: spacing.sm },
+  dayChip: {
+    color: '#6D7B6B',
+    fontSize: 12,
+    fontWeight: '600',
+    backgroundColor: '#E9E7ED',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: radii.full,
     overflow: 'hidden',
-    ...shadows.sm,
   },
   bubble: {
     borderRadius: 18,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    maxWidth: '80%',
+    maxWidth: '78%',
   },
   bubbleMine: {
-    borderBottomRightRadius: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-  },
-  bubbleOther: {
-    backgroundColor: colors.surfaceAlt,
-    borderBottomLeftRadius: 5,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
+    backgroundColor: '#0070EB',
+    borderBottomRightRadius: 4,
     ...shadows.sm,
   },
-  bubbleText: { color: colors.textPrimary, fontSize: 15, lineHeight: 20 },
+  bubbleOther: {
+    backgroundColor: '#EEEDF3',
+    borderBottomLeftRadius: 4,
+  },
+  bubbleOtherDark: {
+    backgroundColor: '#28292E',
+  },
+  bubbleText: { color: '#1A1B1F', fontSize: 15, lineHeight: 21 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, alignSelf: 'flex-end' },
-  metaTextMine: { color: 'rgba(255,255,255,0.76)', fontSize: 11 },
-  metaTextOther: { color: colors.textMuted, fontSize: 11 },
+  metaTextMine: { color: 'rgba(255,255,255,0.85)', fontSize: 11 },
+  metaTextOther: { color: '#6D7B6B', fontSize: 11 },
   reactionRow: { flexDirection: 'row', gap: 2, marginTop: 2 },
   reactionEmoji: { fontSize: 14 },
   quickReactions: {
     flexDirection: 'row',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: radii.full,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -604,62 +740,100 @@ const styles = StyleSheet.create({
   },
   quickReactionEmoji: { fontSize: 20 },
   replyAction: { width: 58, alignItems: 'center', justifyContent: 'center' },
-  typingBubble: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.surfaceAlt, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 9, marginLeft: spacing.lg, marginTop: spacing.sm },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textMuted },
-  typingText: { color: colors.textMuted, fontSize: 12, marginLeft: 4 },
-  replyBar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, backgroundColor: colors.surfaceAlt, borderTopWidth: 1, borderTopColor: colors.borderSoft },
-  replyText: { flex: 1, color: colors.textSecondary, fontSize: 12 },
-  replyClose: { color: colors.textSecondary, fontSize: 22 },
+  typingBubble: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EEEDF3',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginLeft: spacing.md,
+    marginTop: spacing.xs,
+  },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#6D7B6B' },
+  typingText: { color: '#6D7B6B', fontSize: 12, marginLeft: 4 },
+  replyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: '#EEEDF3',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(26, 27, 31, 0.06)',
+  },
+  replyText: { flex: 1, color: '#3D4A3C', fontSize: 12 },
+  replyClose: { color: '#3D4A3C', fontSize: 22 },
   mediaImage: { width: '100%', maxWidth: 220, height: 220, borderRadius: radii.md, marginBottom: 4 },
   mediaVideo: { width: '100%', maxWidth: 220, height: 260, borderRadius: radii.md, marginBottom: 4, backgroundColor: '#102A2B' },
   composerWrap: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
-    paddingBottom: Math.max(spacing.sm, 4),
+    paddingTop: 8,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(26, 27, 31, 0.06)',
   },
-  composer: {
+  composerWrapDark: {
+    backgroundColor: '#1A1B1F',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  composerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderRadius: radii.xl,
-    paddingVertical: 6,
-    paddingHorizontal: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(15,118,110,0.18)',
-    ...shadows.md,
+    gap: 8,
   },
-  composerIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.full,
+  composerCircleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EEEDF3',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  composerCircleBtnDark: {
+    backgroundColor: '#28292E',
+  },
+  inputPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEEDF3',
+    borderRadius: radii.full,
+    paddingHorizontal: 14,
+    height: 44,
+  },
+  inputPillDark: {
+    backgroundColor: '#28292E',
   },
   input: {
     flex: 1,
-    minWidth: 0,
-    color: colors.textPrimary,
+    color: '#1A1B1F',
     fontSize: 15,
-    maxHeight: 110,
-    paddingVertical: 8,
-    paddingHorizontal: 2,
+    maxHeight: 90,
   },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.full,
+  inputDark: {
+    color: '#F1F0F5',
+  },
+  sendCircleBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.sm,
   },
   recordingBtn: { backgroundColor: colors.danger },
   stateBox: { alignItems: 'center', paddingHorizontal: spacing.xl, marginTop: 80, gap: spacing.sm },
-  stateTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  stateText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  stateTitle: { color: '#1A1B1F', fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  stateText: { color: '#6D7B6B', fontSize: 13, textAlign: 'center' },
   retryBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radii.full, paddingHorizontal: spacing.lg, paddingVertical: 10, marginTop: spacing.sm, ...shadows.sm },
   retryText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 80 },
+  empty: { color: '#6D7B6B', textAlign: 'center', marginTop: 80 },
   lightbox: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
   lightboxImage: { width: '100%', height: '80%' },
+  textDark: { color: '#F1F0F5' },
+  textSecondaryDark: { color: '#C2CEC0' },
 });

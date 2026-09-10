@@ -1,8 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-  <item>
-    <shape android:shape="rectangle">
-      <gradient android:angle="135" android:startColor="#4A6CF7" android:endColor="#34C1B0" />
-    </shape>
-  </item>
+  <item android:drawable="@color/splashscreen_background"/>
 </layer-list>

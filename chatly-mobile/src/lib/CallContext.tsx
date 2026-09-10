@@ -19,6 +19,7 @@ export type ActiveCall = {
 type CallContextValue = {
   activeCall: ActiveCall | null;
   presentCall: (call: ActiveCall) => void;
+  answerCall: (call: ActiveCall) => void;
   dismissCall: () => void;
 };
 
@@ -36,7 +37,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <CallContext.Provider value={{ activeCall, presentCall, dismissCall }}>
+    <CallContext.Provider value={{ activeCall, presentCall, answerCall: presentCall, dismissCall }}>
       {children}
     </CallContext.Provider>
   );

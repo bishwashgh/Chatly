@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -9,12 +9,33 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { ArrowRight, Check } from 'lucide-react-native';
-import { BrandMark } from '../components/BrandMark';
-import { ShinyButton } from '../components/ShinyButton';
-import { AmbientBackground } from '../components/AmbientBackground';
+import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '../lib/AuthContext';
 import { colors, radii, shadows, spacing } from '../lib/theme';
 import { useTheme } from '../lib/ThemeContext';
+
+function GoogleIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+        fill="#4285F4"
+      />
+      <Path
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.73-4.96H1.18v3.15C3.15 21.32 7.19 24 12 24z"
+        fill="#34A853"
+      />
+      <Path
+        d="M5.27 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.6H1.18C.43 8.13 0 9.87 0 12s.43 3.87 1.18 5.4l4.09-3.16z"
+        fill="#FBBC05"
+      />
+      <Path
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.19 0 3.15 2.68 1.18 6.6l4.09 3.16c.95-2.85 3.6-4.96 6.73-4.96z"
+        fill="#EA4335"
+      />
+    </Svg>
+  );
+}
 
 export function LoginScreen({ navigation }: { navigation: any }) {
   const insets = useSafeAreaInsets();
@@ -27,7 +48,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
   useEffect(() => {
     opacity.value = withDelay(150, withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) }));
     translateY.value = withDelay(150, withTiming(0, { duration: 600, easing: Easing.out(Easing.cubic) }));
-  }, []);
+  }, [opacity, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -48,45 +69,80 @@ export function LoginScreen({ navigation }: { navigation: any }) {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: isDark ? '#000000' : colors.bg }]}>
-      <AmbientBackground />
+    <View style={[styles.screen, { backgroundColor: isDark ? '#121316' : colors.bg }]}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.content, animatedStyle]}>
           <View style={styles.brandRow}>
-            <BrandMark size={48} />
-            <Text style={styles.brandName}>Chatly</Text>
+            <Image
+              source={require('../../assets/chatly_logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={[styles.brandName, isDark && styles.textDark]}>Chatly</Text>
           </View>
 
           <View style={[styles.card, isDark && styles.cardDark]}>
             <View style={styles.eyebrow}>
               <View style={styles.eyebrowDot} />
-              <Text style={styles.eyebrowText}>A BETTER WAY TO CONNECT</Text>
+              <Text style={styles.eyebrowText}>FRIEND-GATED MESSAGING</Text>
             </View>
 
-            <Text style={styles.title}>Stay close to the people who matter.</Text>
-            <Text style={styles.subtitle}>
-              Your conversations, calls, and moments together — all in one calm place.
+            <Text style={[styles.title, isDark && styles.textDark]}>Stay close to the people who matter.</Text>
+            <Text style={[styles.subtitle, isDark && styles.textMutedDark]}>
+              Your conversations, calls, and moments together — encrypted and friend-gated.
             </Text>
 
-            <View style={styles.perks}>
-              <View style={styles.perk}><Check size={16} color={colors.primary} strokeWidth={3} /><Text style={styles.perkText}>Fast, real-time messaging</Text></View>
-              <View style={styles.perk}><Check size={16} color={colors.primary} strokeWidth={3} /><Text style={styles.perkText}>Clear voice and video calls</Text></View>
+            <View style={[styles.perks, isDark && styles.perksDark]}>
+              <View style={styles.perk}>
+                <Check size={16} color={colors.primary} strokeWidth={3} />
+                <Text style={[styles.perkText, isDark && styles.textSecondaryDark]}>Fast, encrypted real-time chat</Text>
+              </View>
+              <View style={styles.perk}>
+                <Check size={16} color={colors.primary} strokeWidth={3} />
+                <Text style={[styles.perkText, isDark && styles.textSecondaryDark]}>Secure friend-gated circle access</Text>
+              </View>
             </View>
 
             <View style={styles.buttonWrap}>
-              <ShinyButton
-                label={signingIn ? 'Signing in…' : 'Continue with Google'}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.googleBtn,
+                  isDark && styles.googleBtnDark,
+                  signingIn && styles.disabledBtn,
+                  pressed && styles.pressed,
+                ]}
                 onPress={handleLogin}
                 disabled={signingIn}
-              />
+              >
+                <GoogleIcon size={20} />
+                <Text style={[styles.googleBtnText, isDark && styles.textDark]}>
+                  {signingIn ? 'Signing in…' : 'Continue with Google'}
+                </Text>
+              </Pressable>
             </View>
-            {!signingIn && <View style={styles.buttonHint}><Text style={styles.buttonHintText}>Secure sign-in</Text><ArrowRight size={14} color={colors.textMuted} /></View>}
-            <Pressable style={styles.emailButton} onPress={() => navigation.navigate('SignIn')}><Text style={styles.emailButtonText}>Sign in with email</Text></Pressable>
-            <Pressable style={styles.signupLink} onPress={() => navigation.navigate('SignUp')}><Text style={styles.buttonHintText}>New to Chatly? </Text><Text style={styles.signupText}>Create an account</Text></Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.emailButton,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => navigation.navigate('SignIn')}
+            >
+              <Text style={styles.emailButtonText}>Sign In with email</Text>
+              <ArrowRight size={16} color="#FFFFFF" />
+            </Pressable>
+
+            <Pressable
+              style={styles.signupLink}
+              onPress={() => navigation.navigate('SignUp')}
+            >
+              <Text style={[styles.buttonHintText, isDark && styles.textMutedDark]}>New to Chatly? </Text>
+              <Text style={styles.signupText}>Create account</Text>
+            </Pressable>
 
             <Text style={styles.footnote}>By continuing, you agree to Chatly's Terms & Privacy Policy.</Text>
           </View>
@@ -98,37 +154,67 @@ export function LoginScreen({ navigation }: { navigation: any }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  content: { width: '100%', maxWidth: 400, alignItems: 'center' },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 20 },
-  brandIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', ...shadows.sm },
-  brandName: { color: colors.textPrimary, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  content: { width: '100%', maxWidth: 420, alignItems: 'center' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 24 },
+  logoImage: { width: 44, height: 44, borderRadius: 12 },
+  brandName: { color: '#1A1B1F', fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
   card: {
     width: '100%',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: radii.lg + 8,
-    paddingHorizontal: 28,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 24,
     paddingVertical: 32,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.95)',
-    ...shadows.lg,
+    borderColor: 'rgba(26, 27, 31, 0.06)',
+    ...shadows.md,
   },
-  cardDark: { backgroundColor: 'rgba(28,28,30,0.94)', borderColor: 'rgba(255,255,255,0.12)' },
-  title: { color: colors.textPrimary, fontSize: 30, lineHeight: 35, fontWeight: '800', letterSpacing: -0.7, textAlign: 'center' },
-  subtitle: { color: colors.textSecondary, textAlign: 'center', marginTop: 12, marginBottom: 22, lineHeight: 22, fontSize: 15 },
-  eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 18 },
-  eyebrowDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.primaryLight },
-  eyebrowText: { color: colors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
-  perks: { alignSelf: 'stretch', backgroundColor: colors.surfaceAlt, borderRadius: radii.md, padding: spacing.md, gap: 9, marginBottom: 24 },
-  perk: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  perkText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  buttonWrap: { width: '100%', alignItems: 'center' },
-  buttonHint: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 11 },
-  buttonHintText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  emailButton: { width: '100%', minHeight: 50, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, backgroundColor: colors.surface },
-  emailButtonText: { color: colors.textPrimary, fontWeight: '700', fontSize: 15 },
-  signupLink: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg },
-  signupText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
-  footnote: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 22, maxWidth: 270, lineHeight: 17 },
+  cardDark: { backgroundColor: '#1A1B1F', borderColor: 'rgba(255, 255, 255, 0.10)' },
+  title: { color: '#1A1B1F', fontSize: 26, lineHeight: 32, fontWeight: '800', letterSpacing: -0.6, textAlign: 'center' },
+  subtitle: { color: '#3D4A3C', textAlign: 'center', marginTop: 10, marginBottom: 20, lineHeight: 21, fontSize: 14.5 },
+  eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
+  eyebrowDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.primary },
+  eyebrowText: { color: colors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  perks: { alignSelf: 'stretch', backgroundColor: '#F4F3F8', borderRadius: radii.md, padding: spacing.md, gap: 10, marginBottom: 22 },
+  perksDark: { backgroundColor: '#24252A' },
+  perk: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  perkText: { color: '#3D4A3C', fontSize: 13, fontWeight: '600' },
+  buttonWrap: { width: '100%', alignItems: 'center', marginBottom: spacing.sm },
+  googleBtn: {
+    width: '100%',
+    height: 50,
+    borderRadius: radii.md,
+    backgroundColor: '#F4F3F8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(227, 226, 231, 0.5)',
+  },
+  googleBtnDark: { backgroundColor: '#24252A', borderColor: 'rgba(255, 255, 255, 0.1)' },
+  googleBtnText: { color: '#1A1B1F', fontSize: 15, fontWeight: '600' },
+  emailButton: {
+    width: '100%',
+    height: 50,
+    borderRadius: radii.md,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
+    ...shadows.sm,
+  },
+  emailButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  signupLink: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md },
+  buttonHintText: { color: '#6D7B6B', fontSize: 13 },
+  signupText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+  footnote: { color: '#6D7B6B', fontSize: 12, textAlign: 'center', marginTop: 20, maxWidth: 280, lineHeight: 16 },
+  textDark: { color: '#F1F0F5' },
+  textSecondaryDark: { color: '#C2CEC0' },
+  textMutedDark: { color: '#8E9A8C' },
+  disabledBtn: { opacity: 0.6 },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.985 }] },
 });

@@ -68,7 +68,7 @@ export function VoiceMessagePlayer({ uri, durationMs = 0 }: VoiceMessagePlayerPr
             key={index}
             style={[
               styles.bar,
-              { height, backgroundColor: index < activeBars ? colors.primary : 'rgba(124,58,237,0.16)' },
+              { height, backgroundColor: index < activeBars ? colors.primary : 'rgba(0, 110, 40, 0.2)' },
             ]}
           />
         ))}

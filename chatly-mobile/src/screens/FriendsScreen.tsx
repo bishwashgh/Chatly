@@ -4,68 +4,62 @@ import {
   Text,
   TextInput,
   Pressable,
-  FlatList,
   Alert,
   ActivityIndicator,
   StyleSheet,
+  Image,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, ChevronLeft, UserPlus, UserCheck, X, Clock, UserMinus, ShieldOff, RefreshCw, UsersRound, QrCode } from 'lucide-react-native';
+import {
+  Search,
+  Check,
+  X,
+  UserPlus,
+  Lock,
+  QrCode,
+  User,
+  ChevronRight,
+  Zap,
+} from 'lucide-react-native';
 import { useQuery, useLazyQuery, useMutation } from '@apollo/client';
-import { FRIENDS_STATE_QUERY, SEND_FRIEND_REQUEST, ACCEPT_FRIEND_REQUEST, DECLINE_FRIEND_REQUEST, CANCEL_FRIEND_REQUEST, REMOVE_FRIEND, BLOCK_USER, UNBLOCK_USER } from '../graphql/friends.gql';
+import {
+  FRIENDS_STATE_QUERY,
+  SEND_FRIEND_REQUEST,
+  ACCEPT_FRIEND_REQUEST,
+  DECLINE_FRIEND_REQUEST,
+  REMOVE_FRIEND,
+  BLOCK_USER,
+} from '../graphql/friends.gql';
 import { SEARCH_USERS } from '../graphql/users.gql';
 import { CREATE_DIRECT_CONVERSATION } from '../graphql/conversations.gql';
 import { useAuth } from '../lib/AuthContext';
 import { Avatar } from '../components/Avatar';
-import { ProfileModal } from '../components/ProfileModal';
-import { AmbientBackground } from '../components/AmbientBackground';
 import { FloatingDock } from '../components/FloatingDock';
 import { colors, radii, shadows, spacing } from '../lib/theme';
 import { QrScannerModal } from '../components/QrScannerModal';
 import { useTheme } from '../lib/ThemeContext';
 
-type Tab = 'friends' | 'requests' | 'add';
-type Status = 'FRIENDS' | 'INCOMING' | 'OUTGOING';
-
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'friends', label: 'My Friends' },
-  { key: 'requests', label: 'Requests' },
-  { key: 'add', label: 'Suggestions' },
-];
-
 export function FriendsScreen({ navigation }: any) {
   const { currentUser } = useAuth();
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const { data, loading, error, refetch } = useQuery(FRIENDS_STATE_QUERY);
-  const [tab, setTab] = useState<Tab>('friends');
+  const { data, loading, refetch } = useQuery(FRIENDS_STATE_QUERY);
   const [search, setSearch] = useState('');
   const [searchUsers, { data: searchData, loading: searching }] = useLazyQuery(SEARCH_USERS);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [profileVisible, setProfileVisible] = useState(false);
   const [qrVisible, setQrVisible] = useState(false);
 
   const [sendRequest] = useMutation(SEND_FRIEND_REQUEST);
   const [acceptRequest] = useMutation(ACCEPT_FRIEND_REQUEST);
   const [declineRequest] = useMutation(DECLINE_FRIEND_REQUEST);
-  const [cancelRequest] = useMutation(CANCEL_FRIEND_REQUEST);
   const [removeFriend] = useMutation(REMOVE_FRIEND);
   const [blockUser] = useMutation(BLOCK_USER);
-  const [unblockUser] = useMutation(UNBLOCK_USER);
   const [createConversation, { loading: creating }] = useMutation(CREATE_DIRECT_CONVERSATION);
 
   const friends = data?.friends ?? [];
   const incoming = data?.friendRequests ?? [];
   const outgoing = data?.sentFriendRequests ?? [];
-  const blockedUsers = data?.blockedUsers ?? [];
-
-  const statusByUser = useMemo(() => {
-    const map: Record<string, Status> = {};
-    friends.forEach((f: any) => (map[f.id] = 'FRIENDS'));
-    incoming.forEach((r: any) => (map[r.user.id] = 'INCOMING'));
-    outgoing.forEach((r: any) => (map[r.user.id] = 'OUTGOING'));
-    return map;
-  }, [friends, incoming, outgoing]);
 
   const searchResults = useMemo(() => {
     const results = searchData?.searchUsers ?? [];
@@ -80,7 +74,6 @@ export function FriendsScreen({ navigation }: any) {
   const handleQrScanned = (value: string) => {
     setQrVisible(false);
     const username = value.replace(/^chatly:\/\//, '').replace(/^@/, '').split(/[/?#]/)[0];
-    setTab('add');
     handleSearch(username);
     Alert.alert('QR code scanned', `Searching for @${username}`);
   };
@@ -120,554 +113,568 @@ export function FriendsScreen({ navigation }: any) {
 
   const busy = (id: string) => busyId === id || creating;
 
-  const renderSearchButton = (user: any) => {
-    const status = statusByUser[user.id];
-    if (status === 'FRIENDS') {
-      return (
-        <View style={[styles.statusPill, styles.statusPillDone]}>
-          <UserCheck size={14} color={colors.success} />
-          <Text style={[styles.statusPillText, { color: colors.success }]}>Friends</Text>
-        </View>
-      );
-    }
-    if (status === 'OUTGOING') {
-      return (
-        <View style={styles.statusPill}>
-          <Clock size={14} color={colors.textSecondary} />
-          <Text style={styles.statusPillText}>Requested</Text>
-        </View>
-      );
-    }
-    if (status === 'INCOMING') {
-      return (
-        <Pressable
-          style={({ pressed }) => [styles.actionBtn, styles.actionPrimary, pressed && styles.pressed]}
-          onPress={() => run(acceptRequest, user.id)}
-          disabled={busy(user.id)}
-        >
-          {busy(user.id) ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.actionPrimaryText}>Accept</Text>
-          )}
-        </Pressable>
-      );
-    }
-    return (
-      <Pressable
-        style={({ pressed }) => [styles.actionBtn, styles.actionPrimary, pressed && styles.pressed]}
-        onPress={() => run(sendRequest, user.id, `Friend request sent to ${user.name}`)}
-        disabled={busy(user.id)}
-      >
-        {busy(user.id) ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <>
-            <UserPlus size={14} color="#fff" />
-            <Text style={styles.actionPrimaryText}>Add</Text>
-          </>
-        )}
-      </Pressable>
-    );
-  };
-
-  const confirmBlock = (item: any) => {
-    Alert.alert(`Block ${item.name}?`, 'They will be removed from your friends and won\'t be able to message you.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Block',
-        style: 'destructive',
-        onPress: () => run(blockUser, item.id, `${item.name} blocked`),
-      },
-    ]);
-  };
-
-  const renderFriendRow = ({ item }: any) => (
-    <View style={styles.card}>
-      <Pressable
-        style={styles.friendMain}
-        onPress={() => openChat(item)}
-        onLongPress={() => confirmBlock(item)}
-        delayLongPress={350}
-        accessibilityRole="button"
-        accessibilityLabel={`Open chat with ${item.name}`}
-      >
-        <Avatar uri={item.avatarUrl} name={item.name} size={48} isOnline={item.isOnline} />
-        <View style={styles.cardText}>
-          <Text style={styles.title} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>
-            {item.bio ? item.bio : item.isOnline ? 'Online' : `@${item.username}`}
-          </Text>
-        </View>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [styles.removeBtn, pressed && styles.pressed]}
-        onPress={() => run(removeFriend, item.id, `${item.name} removed from friends`)}
-        disabled={busy(item.id)}
-        accessibilityRole="button"
-        accessibilityLabel={`Remove ${item.name} from friends`}
-      >
-        {busy(item.id) ? (
-          <ActivityIndicator size="small" color={colors.danger} />
-        ) : (
-          <>
-            <UserMinus size={14} color={colors.danger} />
-            <Text style={styles.removeText}>Remove</Text>
-          </>
-        )}
-      </Pressable>
-    </View>
-  );
-
-  const renderBlockedRow = ({ item }: any) => (
-    <View style={[styles.card, styles.cardCompact]}>
-      <Avatar uri={item.avatarUrl} name={item.name} size={40} />
-      <View style={styles.cardText}>
-        <Text style={styles.title} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.subtitle} numberOfLines={1}>@{item.username}</Text>
-      </View>
-      <Pressable
-        style={({ pressed }) => [styles.actionBtn, styles.actionGhost, pressed && styles.pressed]}
-        onPress={() => run(unblockUser, item.id, `${item.name} unblocked`)}
-        disabled={busy(item.id)}
-      >
-        {busy(item.id) ? (
-          <ActivityIndicator size="small" color={colors.textSecondary} />
-        ) : (
-          <Text style={styles.actionGhostText}>Unblock</Text>
-        )}
-      </Pressable>
-    </View>
-  );
-
-  const renderRequestRow = ({ item }: any) => {
-    const u = item.user;
-    return (
-      <View style={styles.card}>
-        <Avatar uri={u.avatarUrl} name={u.name} size={48} isOnline={u.isOnline} />
-        <View style={styles.cardText}>
-          <Text style={styles.title} numberOfLines={1}>{u.name}</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>@{u.username}</Text>
-        </View>
-        <View style={styles.requestActions}>
-          <Pressable
-            style={({ pressed }) => [styles.actionBtn, styles.actionPrimary, pressed && styles.pressed]}
-            onPress={() => run(acceptRequest, u.id, `${u.name} is now your friend`)}
-            disabled={busy(u.id)}
-          >
-            {busy(u.id) ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.actionPrimaryText}>Accept</Text>}
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.actionBtn, styles.actionGhost, pressed && styles.pressed]}
-            onPress={() => run(declineRequest, u.id)}
-            disabled={busy(u.id)}
-          >
-            <X size={14} color={colors.textSecondary} />
-            <Text style={styles.actionGhostText}>Decline</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  };
-
-  const renderSentRow = ({ item }: any) => {
-    const u = item.user;
-    return (
-      <View style={[styles.card, styles.cardCompact]}>
-        <Avatar uri={u.avatarUrl} name={u.name} size={40} isOnline={u.isOnline} />
-        <View style={styles.cardText}>
-          <Text style={styles.title} numberOfLines={1}>{u.name}</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>@{u.username}</Text>
-        </View>
-        <Pressable
-          style={({ pressed }) => [styles.actionBtn, styles.actionGhost, pressed && styles.pressed]}
-          onPress={() => run(cancelRequest, u.id)}
-          disabled={busy(u.id)}
-        >
-          {busy(u.id) ? (
-            <ActivityIndicator size="small" color={colors.textSecondary} />
-          ) : (
-            <Text style={styles.actionGhostText}>Cancel</Text>
-          )}
-        </Pressable>
-      </View>
-    );
-  };
-
-  const renderQueryState = (empty: React.ReactElement): React.ReactElement => {
-    if (loading) {
-      return (
-        <View style={styles.stateBox}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={styles.stateText}>Loading friends…</Text>
-        </View>
-      );
-    }
-    if (error) {
-      return (
-        <View style={styles.stateBox}>
-          <Text style={styles.stateTitle}>Couldn’t load friends</Text>
-          <Text style={styles.stateText}>Check your connection and try again.</Text>
-          <Pressable style={styles.retryBtn} onPress={() => refetch()}>
-            <RefreshCw size={15} color="#fff" />
-            <Text style={styles.retryText}>Try again</Text>
-          </Pressable>
-        </View>
-      );
-    }
-    return empty;
-  };
-
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <AmbientBackground />
-
-      <View style={[styles.header, isDark && styles.headerDark]}>
-        <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} accessibilityLabel="Go back">
-          <ChevronLeft size={22} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Friends</Text>
-        <Pressable onPress={() => setProfileVisible(true)} accessibilityRole="button" accessibilityLabel="Open profile">
-          <Avatar uri={currentUser?.avatarUrl} name={currentUser?.name} size={36} />
+    <View style={[styles.container, { backgroundColor: isDark ? '#121316' : colors.bg }]}>
+      {/* Top Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.headerLeft}>
+          <Image
+            source={require('../../assets/chatly_logo.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+          <Text style={[styles.headerTitle, isDark && styles.textDark]}>Chatly</Text>
+        </View>
+        <Pressable
+          style={styles.headerProfileBtn}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <User size={18} color="#FFFFFF" strokeWidth={2.2} />
         </Pressable>
       </View>
 
-      <View style={styles.tabBar}>
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          const badge = t.key === 'requests' ? incoming.length : 0;
-          return (
-            <Pressable
-              key={t.key}
-              style={[styles.tab, active && styles.tabActive]}
-              onPress={() => setTab(t.key)}
-            >
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
-              {badge > 0 && (
-                <View style={styles.tabBadge}>
-                  <Text style={styles.tabBadgeText}>{badge}</Text>
-                </View>
-              )}
+      {/* Search & QR Bar */}
+      <View style={styles.searchBarRow}>
+        <View style={[styles.searchBar, isDark && styles.searchBarDark]}>
+          <Search size={18} color="#6D7B6B" />
+          <TextInput
+            style={[styles.searchInput, isDark && styles.inputDark]}
+            placeholder="Search friends or tag..."
+            placeholderTextColor="#6D7B6B"
+            value={search}
+            onChangeText={handleSearch}
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+              <X size={16} color="#6D7B6B" />
             </Pressable>
-          );
-        })}
+          )}
+        </View>
+        <Pressable
+          style={({ pressed }) => [styles.qrButton, pressed && styles.btnPressed]}
+          onPress={() => setQrVisible(true)}
+          accessibilityLabel="Scan QR code"
+        >
+          <QrCode size={20} color="#FFFFFF" />
+        </Pressable>
       </View>
 
-      {tab === 'friends' && (
-        <FlatList
-          data={friends}
-          keyExtractor={(item: any) => item.id}
-          renderItem={renderFriendRow}
-          refreshing={loading}
-          onRefresh={refetch}
-          contentContainerStyle={[styles.listContent, { paddingBottom: 96 + insets.bottom }]}
-          ListEmptyComponent={renderQueryState(
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}><UsersRound size={28} color={colors.primary} /></View>
-              <Text style={styles.emptyTitle}>Build your circle</Text>
-              <Text style={styles.empty}>Add your first friend to unlock private conversations.</Text>
-              <Pressable style={styles.emptyCta} onPress={() => setTab('add')}>
-                <UserPlus size={16} color="#fff" />
-                <Text style={styles.retryText}>Add a friend</Text>
-              </Pressable>
-            </View>
-          )}
-          ListFooterComponent={
-            blockedUsers.length > 0 ? (
-              <>
-                <View style={styles.blockedHeader}>
-                  <ShieldOff size={14} color={colors.textMuted} />
-                  <Text style={styles.blockedTitle}>Blocked users</Text>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 90 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Friend-Gated Vault Banner */}
+        <View style={[styles.vaultCard, isDark && styles.vaultCardDark]}>
+          <View style={styles.vaultIconWrap}>
+            <Lock size={18} color={colors.secondary} strokeWidth={2.4} />
+          </View>
+          <View style={styles.vaultTextWrap}>
+            <Text style={[styles.vaultTitle, isDark && styles.vaultTitleDark]}>
+              Friend-Gated Vault
+            </Text>
+            <Text style={[styles.vaultDesc, isDark && styles.vaultDescDark]}>
+              Only verified connections can exchange secure payloads and chat messages.
+            </Text>
+          </View>
+        </View>
+
+        {/* Search Results (if searching) */}
+        {search.trim().length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, isDark && styles.textDark]}>Search Results</Text>
+            <View style={[styles.groupedCard, isDark && styles.cardDark]}>
+              {searching ? (
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator size="small" color={colors.primary} />
                 </View>
-                <FlatList
-                  data={blockedUsers}
-                  keyExtractor={(item: any) => item.id}
-                  renderItem={renderBlockedRow}
-                  scrollEnabled={false}
-                />
-                <Text style={styles.blockedHint}>Long-press a friend to block them.</Text>
-              </>
-            ) : (
-              <Text style={styles.blockedHint}>Long-press a friend to block them.</Text>
-            )
-          }
-        />
-      )}
+              ) : searchResults.length === 0 ? (
+                <Text style={[styles.emptyHint, isDark && styles.textSecondaryDark]}>
+                  No users found for "{search}"
+                </Text>
+              ) : (
+                searchResults.map((u: any, idx: number) => {
+                  const isFriend = friends.some((f: any) => f.id === u.id);
+                  const isSent = outgoing.some((r: any) => r.user?.id === u.id);
+                  return (
+                    <React.Fragment key={u.id}>
+                      <View style={styles.userRow}>
+                        <Avatar uri={u.avatarUrl} name={u.name} size={44} isOnline={u.isOnline} />
+                        <View style={styles.userTextWrap}>
+                          <Text style={[styles.friendName, isDark && styles.textDark]}>{u.name}</Text>
+                          <Text style={styles.friendSub}>@{u.username}</Text>
+                        </View>
+                        {isFriend ? (
+                          <Pressable
+                            style={styles.chatSmallBtn}
+                            onPress={() => openChat(u)}
+                          >
+                            <Text style={styles.chatSmallBtnText}>Chat</Text>
+                          </Pressable>
+                        ) : isSent ? (
+                          <View style={styles.sentPill}>
+                            <Text style={styles.sentPillText}>Requested</Text>
+                          </View>
+                        ) : (
+                          <Pressable
+                            style={styles.connectBtn}
+                            onPress={() => run(sendRequest, u.id, `Request sent to ${u.name}`)}
+                            disabled={busy(u.id)}
+                          >
+                            {busy(u.id) ? (
+                              <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                              <>
+                                <UserPlus size={14} color="#fff" />
+                                <Text style={styles.connectBtnText}>Connect</Text>
+                              </>
+                            )}
+                          </Pressable>
+                        )}
+                      </View>
+                      {idx < searchResults.length - 1 && (
+                        <View style={[styles.rowDivider, isDark && styles.dividerDark]} />
+                      )}
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </View>
+          </View>
+        )}
 
-      {tab === 'requests' && (
-        <FlatList
-          data={incoming}
-          keyExtractor={(item: any) => item.id}
-          renderItem={renderRequestRow}
-          refreshing={loading}
-          onRefresh={refetch}
-          contentContainerStyle={[styles.listContent, { paddingBottom: 96 + insets.bottom }]}
-          ListHeaderComponent={
-            outgoing.length > 0 ? (
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Sent requests</Text>
+        {/* Requests Section */}
+        {incoming.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, isDark && styles.textDark]}>Requests</Text>
+              <View style={styles.newBadge}>
+                <Text style={styles.newBadgeText}>{incoming.length} New</Text>
               </View>
-            ) : null
-          }
-          ListFooterComponent={
-            incoming.length > 0 && outgoing.length > 0 ? (
-              <FlatList
-                data={outgoing}
-                keyExtractor={(item: any) => item.id}
-                renderItem={renderSentRow}
-                scrollEnabled={false}
-              />
-            ) : null
-          }
-          ListEmptyComponent={renderQueryState(
-            outgoing.length > 0 ? (
-              <FlatList
-                data={outgoing}
-                keyExtractor={(item: any) => item.id}
-                renderItem={renderSentRow}
-                scrollEnabled={false}
-              />
-            ) : (
-              <Text style={styles.empty}>No pending requests.</Text>
-            )
-          )}
-        />
-      )}
+            </View>
+            <View style={[styles.groupedCard, isDark && styles.cardDark]}>
+              {incoming.map((req: any, idx: number) => {
+                const u = req.user;
+                return (
+                  <React.Fragment key={req.id || u.id}>
+                    <View style={styles.requestRow}>
+                      <View style={styles.requestAvatarWrap}>
+                        <Avatar uri={u.avatarUrl} name={u.name} size={48} />
+                        <View style={styles.boltBadge}>
+                          <Zap size={11} color="#FFFFFF" strokeWidth={2.6} />
+                        </View>
+                      </View>
+                      <View style={styles.requestTextWrap}>
+                        <Text style={[styles.friendName, isDark && styles.textDark]}>{u.name}</Text>
+                        <Text style={styles.friendSub}>Via QR Scan • Connected circle</Text>
+                      </View>
+                      <View style={styles.requestActionsRow}>
+                        <Pressable
+                          style={styles.declineBtn}
+                          onPress={() => run(declineRequest, u.id)}
+                          disabled={busy(u.id)}
+                        >
+                          <X size={18} color="#6D7B6B" />
+                        </Pressable>
+                        <Pressable
+                          style={styles.acceptBtn}
+                          onPress={() => run(acceptRequest, u.id, `${u.name} is now your friend`)}
+                          disabled={busy(u.id)}
+                        >
+                          {busy(u.id) ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Check size={18} color="#FFFFFF" strokeWidth={2.4} />
+                          )}
+                        </Pressable>
+                      </View>
+                    </View>
+                    {idx < incoming.length - 1 && (
+                      <View style={[styles.rowDivider, isDark && styles.dividerDark]} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
-      {tab === 'add' && (
-        <View style={styles.addTab}>
-          <View style={styles.searchBar}>
-            <Search size={16} color={colors.textMuted} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search people by name or username"
-              placeholderTextColor={colors.textMuted}
-              value={search}
-              onChangeText={handleSearch}
-              autoFocus
-            />
-            {search.length > 0 && (
-              <Pressable onPress={() => setSearch('')} accessibilityLabel="Clear people search" hitSlop={8}>
-                <X size={16} color={colors.textMuted} />
-              </Pressable>
-            )}
-            {searching && <ActivityIndicator size="small" color={colors.textMuted} />}
+        {/* Connections Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, isDark && styles.textDark]}>Connections</Text>
+            <Text style={styles.activeCountText}>
+              {friends.filter((f: any) => f.isOnline).length || friends.length} Active
+            </Text>
           </View>
 
-          {search.trim() ? (
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item: any) => item.id}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={[styles.listContent, { paddingBottom: 96 + insets.bottom }]}
-              renderItem={({ item }: any) => (
-                <View style={styles.card}>
-                  <Avatar uri={item.avatarUrl} name={item.name} size={48} isOnline={item.isOnline} />
-                  <View style={styles.cardText}>
-                    <Text style={styles.title} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.subtitle} numberOfLines={1}>@{item.username}</Text>
-                  </View>
-                  {renderSearchButton(item)}
-                </View>
-              )}
-              ListEmptyComponent={<Text style={styles.emptySmall}>No people found</Text>}
-            />
-          ) : (
-            <View style={styles.addIntro}>
-              <View style={styles.qrCard}>
-                <QrCode size={25} color={colors.primary} />
-                <View style={styles.qrCopy}><Text style={styles.qrTitle}>Have a QR code?</Text><Text style={styles.qrText}>Scan to add someone instantly.</Text></View>
-                <Pressable style={styles.qrButton} onPress={() => setQrVisible(true)}><Text style={styles.qrButtonText}>Scan</Text></Pressable>
+          <View style={[styles.groupedCard, isDark && styles.cardDark]}>
+            {loading ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
-              <Text style={styles.hint}>Search by name or username to find people and send a friend request.</Text>
-            </View>
-          )}
+            ) : friends.length === 0 ? (
+              <View style={styles.emptyFriendsBox}>
+                <Text style={[styles.emptyHint, isDark && styles.textSecondaryDark]}>
+                  No connections yet. Add friends using their tag or scan their QR code.
+                </Text>
+              </View>
+            ) : (
+              friends.map((friend: any, idx: number) => (
+                <React.Fragment key={friend.id}>
+                  <Pressable
+                    style={({ pressed }) => [styles.friendRow, pressed && styles.cardPressed]}
+                    onPress={() => openChat(friend)}
+                  >
+                    <Avatar
+                      uri={friend.avatarUrl}
+                      name={friend.name}
+                      size={48}
+                      isOnline={friend.isOnline}
+                    />
+                    <View style={styles.friendTextWrap}>
+                      <Text style={[styles.friendName, isDark && styles.textDark]}>
+                        {friend.name}
+                      </Text>
+                      <Text style={styles.friendSub}>
+                        {friend.isOnline
+                          ? 'Online • End-to-end encrypted'
+                          : 'Active recently'}
+                      </Text>
+                    </View>
+                    <ChevronRight size={18} color="#6D7B6B" />
+                  </Pressable>
+                  {idx < friends.length - 1 && (
+                    <View style={[styles.rowDivider, isDark && styles.dividerDark]} />
+                  )}
+                </React.Fragment>
+              ))
+            )}
+          </View>
         </View>
-      )}
+      </ScrollView>
 
+      {/* Bottom Dock */}
       <FloatingDock active="friends" navigation={navigation} />
-      <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} navigation={navigation} />
-      <QrScannerModal visible={qrVisible} onClose={() => setQrVisible(false)} onScanned={handleQrScanned} />
+
+      {/* QR Scanner Modal */}
+      <QrScannerModal
+        visible={qrVisible}
+        onClose={() => setQrVisible(false)}
+        onScanned={handleQrScanned}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingBottom: 10,
   },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    ...shadows.sm,
-  },
-  headerDark: { backgroundColor: 'rgba(0,0,0,0.18)' },
-  headerTitle: { color: colors.textPrimary, fontSize: 25, fontWeight: '800', letterSpacing: -0.4 },
-  tabBar: {
-    flexDirection: 'row',
-    gap: 4,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: 5,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    ...shadows.sm,
-  },
-  tab: {
-    flex: 1,
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: radii.full,
+    gap: 8,
   },
-  tabActive: { backgroundColor: colors.primary, ...shadows.sm },
-  tabLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  tabLabelActive: { color: '#fff', fontWeight: '700' },
-  tabBadge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 5,
+  headerLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1A1B1F',
+    letterSpacing: -0.3,
+  },
+  headerProfileBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  listContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
-  card: {
+  searchBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
     marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.96)',
+    gap: 10,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E9E7ED',
+    borderRadius: radii.md,
+    paddingHorizontal: 12,
+    height: 46,
+    gap: 8,
+  },
+  searchBarDark: {
+    backgroundColor: '#24252A',
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 15,
+    color: '#1A1B1F',
+  },
+  inputDark: {
+    color: '#F1F0F5',
+  },
+  qrButton: {
+    width: 46,
+    height: 46,
+    borderRadius: radii.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
     ...shadows.sm,
   },
-  friendMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  cardCompact: { paddingVertical: 10 },
-  cardPressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
-  cardText: { flex: 1, minWidth: 0 },
-  title: { color: colors.textPrimary, fontWeight: '700', fontSize: 16 },
-  subtitle: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
-  stateBox: { alignItems: 'center', paddingHorizontal: spacing.xl, marginTop: 60, gap: spacing.sm },
-  stateTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  stateText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radii.full, paddingHorizontal: spacing.lg, paddingVertical: 10, marginTop: spacing.sm, ...shadows.sm },
-  retryText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  emptyState: { alignItems: 'center', marginTop: 54, paddingHorizontal: spacing.xl },
-  emptyIcon: { width: 68, height: 68, borderRadius: 24, backgroundColor: colors.lavender, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
-  emptyTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '800' },
-  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 7, paddingHorizontal: spacing.xl, lineHeight: 22 },
-  emptyCta: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: colors.primary, borderRadius: radii.full, paddingHorizontal: spacing.lg, paddingVertical: 11, marginTop: spacing.lg, ...shadows.sm },
-  addIntro: { paddingHorizontal: spacing.lg },
-  qrCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md,    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
+  btnPressed: {
+    transform: [{ scale: 0.94 }],
+    opacity: 0.9,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+  },
+  vaultCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#D8E2FF',
+    borderRadius: 16,
     padding: spacing.md,
+    gap: 12,
+    marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
- ...shadows.sm },
-  qrCopy: { flex: 1 },
-  qrTitle: { color: colors.textPrimary, fontWeight: '800', fontSize: 14 },
-  qrText: { color: colors.textMuted, fontSize: 12, marginTop: 3 },
-  qrButton: { backgroundColor: colors.lavender, borderRadius: radii.full, paddingHorizontal: 14, paddingVertical: 8 },
-  qrButtonText: { color: colors.primary, fontWeight: '800', fontSize: 13 },
-  emptySmall: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
-  hint: { color: colors.textMuted, textAlign: 'center', marginTop: 32, fontSize: 14, paddingHorizontal: spacing.xl, lineHeight: 20 },
-  sectionHeader: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs },
-  sectionTitle: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
-  blockedHeader: {
+    borderColor: 'rgba(0, 88, 188, 0.12)',
+  },
+  vaultCardDark: {
+    backgroundColor: '#17243B',
+    borderColor: 'rgba(216, 226, 255, 0.15)',
+  },
+  vaultIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 88, 188, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  vaultTextWrap: {
+    flex: 1,
+  },
+  vaultTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#001A41',
+    marginBottom: 2,
+  },
+  vaultTitleDark: {
+    color: '#ADC6FF',
+  },
+  vaultDesc: {
+    fontSize: 12.5,
+    color: '#004493',
+    lineHeight: 17,
+  },
+  vaultDescDark: {
+    color: '#D8E2FF',
+  },
+  section: {
+    marginBottom: spacing.md,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1B1F',
+  },
+  newBadge: {
+    backgroundColor: 'rgba(114, 254, 136, 0.3)',
+    borderRadius: radii.full,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  newBadgeText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  activeCountText: {
+    fontSize: 13,
+    color: '#6D7B6B',
+    fontWeight: '500',
+  },
+  groupedCard: {
+    backgroundColor: '#F4F3F8',
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...shadows.sm,
+  },
+  cardDark: {
+    backgroundColor: '#1A1B1F',
+  },
+  requestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  requestAvatarWrap: {
+    position: 'relative',
+  },
+  boltBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  requestTextWrap: {
+    flex: 1,
+  },
+  requestActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  declineBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E9E7ED',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  acceptBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  userTextWrap: {
+    flex: 1,
+  },
+  friendTextWrap: {
+    flex: 1,
+  },
+  friendName: {
+    fontSize: 15.5,
+    fontWeight: '600',
+    color: '#1A1B1F',
+  },
+  friendSub: {
+    fontSize: 12.5,
+    color: '#6D7B6B',
+    marginTop: 2,
+  },
+  connectBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xs,
-  },
-  blockedTitle: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  blockedHint: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: spacing.md },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: radii.md,
-    marginHorizontal: spacing.lg,
-    marginVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 13,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    ...shadows.sm,
   },
-  searchInput: { flex: 1, minWidth: 0, color: colors.textPrimary, fontSize: 15 },
-  addTab: { flex: 1 },
-  actionBtn: {
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    borderRadius: radii.full,
+  connectBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chatSmallBtn: {
+    backgroundColor: colors.primary,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    minWidth: 78,
+    paddingVertical: 6,
+    borderRadius: radii.md,
   },
-  actionPrimary: { backgroundColor: colors.primary, ...shadows.sm },
-  actionPrimaryText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  actionGhost: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
+  chatSmallBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  actionGhostText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  pressed: { opacity: 0.75 },
-  removeBtn: {
-    flexShrink: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
+  sentPill: {
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 4,
     borderRadius: radii.full,
-    maxWidth: 96,
   },
-  removeText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
-  statusPill: {
-    flexDirection: 'row',
+  sentPillText: {
+    fontSize: 12,
+    color: '#6D7B6B',
+  },
+  rowDivider: {
+    height: 1,
+    backgroundColor: '#E9E7ED',
+    marginLeft: 72,
+  },
+  dividerDark: {
+    backgroundColor: '#28292E',
+  },
+  loadingBox: {
+    padding: spacing.lg,
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  statusPillDone: { backgroundColor: 'rgba(34,197,94,0.10)', borderColor: 'rgba(34,197,94,0.25)' },
-  statusPillText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  requestActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  emptyFriendsBox: {
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  emptyHint: {
+    fontSize: 13,
+    color: '#6D7B6B',
+    textAlign: 'center',
+    padding: spacing.md,
+  },
+  cardPressed: {
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+  },
+  textDark: {
+    color: '#F1F0F5',
+  },
+  textSecondaryDark: {
+    color: '#C2CEC0',
+  },
 });

@@ -7,8 +7,9 @@ import { createClient } from 'graphql-ws';
 import { createUploadLink } from 'apollo-upload-client';
 import { tokenStorage } from './secureStore';
 
-const HTTP_URL = process.env.EXPO_PUBLIC_API_HTTP_URL ?? 'http://localhost:4000/graphql';
-const WS_URL = process.env.EXPO_PUBLIC_API_WS_URL ?? 'ws://localhost:4000/graphql';
+const env = process.env as Record<string, string | undefined>;
+const HTTP_URL = env.EXPO_PUBLIC_API_HTTP_URL ?? 'http://localhost:4000/graphql';
+const WS_URL = env.EXPO_PUBLIC_API_WS_URL ?? 'ws://localhost:4000/graphql';
 
 const uploadLink = createUploadLink({ uri: HTTP_URL });
 

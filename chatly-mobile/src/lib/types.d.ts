@@ -14,3 +14,15 @@ declare module 'apollo-upload-client' {
 
   export function createUploadLink(options?: CreateUploadLinkOptions): ApolloLink;
 }
+
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      EXPO_PUBLIC_API_HTTP_URL?: string;
+      EXPO_PUBLIC_API_WS_URL?: string;
+      EXPO_PUBLIC_LIVEKIT_URL?: string;
+      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?: string;
+      [key: string]: string | undefined;
+    }
+  }
+}

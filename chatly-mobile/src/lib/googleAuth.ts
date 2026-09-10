@@ -1,6 +1,7 @@
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
-const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+const env = process.env as Record<string, string | undefined>;
+const webClientId = env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
 // This must be the Web OAuth client from the same Google Cloud project as the
 // backend's GOOGLE_CLIENT_ID. The Android OAuth client is additionally matched

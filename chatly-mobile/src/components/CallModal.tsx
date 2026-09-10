@@ -17,7 +17,8 @@ import { Track } from 'livekit-client';
 import { INCOMING_CALL_SUBSCRIPTION, END_CALL, UPDATE_CALL_STATUS } from '../graphql/calls.gql';
 import { useCall, ActiveCall } from '../lib/CallContext';
 
-const LIVEKIT_URL = process.env.EXPO_PUBLIC_LIVEKIT_URL ?? '';
+const env = process.env as Record<string, string | undefined>;
+const LIVEKIT_URL = env.EXPO_PUBLIC_LIVEKIT_URL ?? '';
 
 type CallModalProps = {
   currentUserId: string;

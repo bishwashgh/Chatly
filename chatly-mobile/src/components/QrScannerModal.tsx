@@ -5,9 +5,9 @@ import { BlurView } from 'expo-blur';
 import { Check, X } from 'lucide-react-native';
 import { colors, radii, spacing } from '../lib/theme';
 
-type Props = { visible: boolean; onClose: () => void; onScanned: (value: string) => void };
+type Props = { visible: boolean; onClose: () => void; onScanned?: (value: string) => void; onScan?: (value: string) => void };
 
-export function QrScannerModal({ visible, onClose, onScanned }: Props) {
+export function QrScannerModal({ visible, onClose, onScanned, onScan }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
@@ -16,7 +16,8 @@ export function QrScannerModal({ visible, onClose, onScanned }: Props) {
   const onBarcodeScanned = ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
-    onScanned(data);
+    onScanned?.(data);
+    onScan?.(data);
   };
 
   return <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
