@@ -3,6 +3,8 @@ import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useSubscription } from '@apollo/client';
 import { Image } from 'expo-image';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { PhoneOff, Phone, Mic, MicOff, Video as VideoIcon, Camera, RotateCcw, Volume2, VolumeX } from 'lucide-react-native';
 import {
@@ -72,6 +74,51 @@ function RingAvatar({ peer, size = 128 }: { peer: ActiveCall['peer']; size?: num
   );
 }
 
+function PulsingAcceptBtn({ onPress }: { onPress: () => void }) {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withRepeat(
+      withTiming(1.08, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable style={[styles.controlBtn, styles.acceptBtn]} onPress={onPress}>
+        <Phone size={26} color="#fff" />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function CallBackdrop({ avatarUrl }: { avatarUrl?: string }) {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {avatarUrl ? (
+        <Image
+          source={{ uri: avatarUrl }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          blurRadius={30}
+        />
+      ) : (
+        <LinearGradient
+          colors={['#1E2640', '#0E1322', '#06080E']}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5, 7, 14, 0.72)' }]} />
+      <BlurView intensity={75} tint="dark" style={StyleSheet.absoluteFill} />
+    </View>
+  );
+}
+
 type CallRoomContentProps = {
   call: ActiveCall;
   phase: Phase;
@@ -100,7 +147,10 @@ function CallRoomContent({ call, phase, setPhase, isMuted, setIsMuted, elapsed, 
       {isVideo ? (
         <View style={styles.videoStage}>
           <VideoCallGrid />
-          <View style={styles.selfView}><VideoIcon size={18} color="rgba(255,255,255,0.72)" /><Text style={styles.selfViewText}>You</Text></View>
+          <View style={styles.selfView}>
+            <VideoIcon size={18} color="rgba(255,255,255,0.72)" />
+            <Text style={styles.selfViewText}>You</Text>
+          </View>
         </View>
       ) : (
         <View style={styles.centerContent}>
@@ -120,15 +170,19 @@ function CallRoomContent({ call, phase, setPhase, isMuted, setIsMuted, elapsed, 
               <Pressable style={[styles.controlBtn, isMuted && styles.activeControlBtn]} onPress={() => setIsMuted(!isMuted)}>
                 {isMuted ? <MicOff size={24} color="#fff" /> : <Mic size={24} color="#fff" />}
               </Pressable>
-              {isVideo && <Pressable style={[styles.controlBtn, !cameraEnabled && styles.activeControlBtn]} onPress={() => setCameraEnabled(!cameraEnabled)}>
-                {cameraEnabled ? <Camera size={24} color="#fff" /> : <VideoIcon size={24} color="#fff" />}
-              </Pressable>}
-              {isVideo && <Pressable style={styles.controlBtn} onPress={() => setSpeakerEnabled(!speakerEnabled)}>
+              {isVideo && (
+                <Pressable style={[styles.controlBtn, !cameraEnabled && styles.activeControlBtn]} onPress={() => setCameraEnabled(!cameraEnabled)}>
+                  {cameraEnabled ? <Camera size={24} color="#fff" /> : <VideoIcon size={24} color="#fff" />}
+                </Pressable>
+              )}
+              <Pressable style={[styles.controlBtn, speakerEnabled && styles.activeControlBtn]} onPress={() => setSpeakerEnabled(!speakerEnabled)}>
                 {speakerEnabled ? <Volume2 size={24} color="#fff" /> : <VolumeX size={24} color="#fff" />}
-              </Pressable>}
-              {isVideo && <Pressable style={styles.controlBtn} onPress={() => {}}>
-                <RotateCcw size={22} color="#fff" />
-              </Pressable>}
+              </Pressable>
+              {isVideo && (
+                <Pressable style={styles.controlBtn} onPress={() => {}}>
+                  <RotateCcw size={22} color="#fff" />
+                </Pressable>
+              )}
               <Pressable style={[styles.controlBtn, styles.hangupBtn]} onPress={handleEnd}>
                 <PhoneOff size={24} color="#fff" />
               </Pressable>
@@ -146,41 +200,49 @@ function CallRoomContent({ call, phase, setPhase, isMuted, setIsMuted, elapsed, 
 
 export function CallModal({ currentUserId }: CallModalProps) {
   const insets = useSafeAreaInsets();
-  const { activeCall, presentCall, dismissCall } = useCall();
-  const [phase, setPhase] = useState<Phase>('incoming');
+  const { activeCall, dismissCall, answerCall } = useCall();
+  const [phase, setPhase] = useState<Phase>('outgoing');
   const [isMuted, setIsMuted] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+
   const [endCall] = useMutation(END_CALL);
   const [updateCallStatus] = useMutation(UPDATE_CALL_STATUS);
 
   useSubscription(INCOMING_CALL_SUBSCRIPTION, {
     variables: { userId: currentUserId },
-    onData: ({ data }) => {
-      const signal = data?.data?.incomingCallSignal;
-      if (!signal) return;
-      presentCall({
-        sessionId: signal.sessionId,
-        roomToken: signal.roomToken,
-        channelName: signal.channelName,
-        callType: signal.callType,
-        peer: signal.caller,
-        isOutgoing: false,
-      });
+    onData: ({ data: subscriptionData }) => {
+      const call = subscriptionData?.data?.incomingCall;
+      if (call && !activeCall) {
+        answerCall({
+          sessionId: call.sessionId,
+          channelName: call.channelName,
+          callType: call.callType,
+          roomToken: call.roomToken,
+          peer: {
+            id: call.caller.id,
+            name: call.caller.name,
+            avatarUrl: call.caller.avatarUrl,
+          },
+          isOutgoing: false,
+        });
+        setPhase('incoming');
+      }
     },
   });
 
   useEffect(() => {
-    if (activeCall) {
-      setPhase(activeCall.isOutgoing ? 'outgoing' : 'incoming');
-      setIsMuted(false);
+    if (!activeCall) {
       setElapsed(0);
+      return;
     }
+    setPhase(activeCall.isOutgoing ? 'outgoing' : 'incoming');
+    setIsMuted(false);
   }, [activeCall]);
 
   useEffect(() => {
     if (phase !== 'connected') return;
-    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(id);
+    const interval = setInterval(() => setElapsed((prev) => prev + 1), 1000);
+    return () => clearInterval(interval);
   }, [phase]);
 
   if (!activeCall) return null;
@@ -200,6 +262,8 @@ export function CallModal({ currentUserId }: CallModalProps) {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={handleEnd}>
       <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }]}>
+        <CallBackdrop avatarUrl={activeCall.peer.avatarUrl} />
+
         {phase === 'incoming' ? (
           <>
             <View style={styles.centerContent}>
@@ -211,12 +275,12 @@ export function CallModal({ currentUserId }: CallModalProps) {
               <Pressable style={[styles.controlBtn, styles.declineBtn]} onPress={handleEnd}>
                 <PhoneOff size={26} color="#fff" />
               </Pressable>
-              <Pressable
-                style={[styles.controlBtn, styles.acceptBtn]}
-                onPress={async () => { await updateCallStatus({ variables: { sessionId: activeCall.sessionId, status: 'ACCEPTED' } }); setPhase('connected'); }}
-              >
-                <Phone size={26} color="#fff" />
-              </Pressable>
+              <PulsingAcceptBtn
+                onPress={async () => {
+                  await updateCallStatus({ variables: { sessionId: activeCall.sessionId, status: 'ACCEPTED' } });
+                  setPhase('connected');
+                }}
+              />
             </View>
           </>
         ) : (
@@ -247,7 +311,7 @@ export function CallModal({ currentUserId }: CallModalProps) {
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: '#000000', paddingHorizontal: 24 },
   centerContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  videoStage: { flex: 1, position: 'relative', backgroundColor: '#050509' },
+  videoStage: { flex: 1, position: 'relative', backgroundColor: 'transparent' },
   selfView: { position: 'absolute', right: 4, top: 16, width: 92, height: 124, borderRadius: 18, backgroundColor: 'rgba(28,28,30,0.88)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
   selfViewText: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 5 },
   ringHalo: {
@@ -264,7 +328,7 @@ const styles = StyleSheet.create({
   },
   avatarInitials: { color: '#fff', fontSize: 40, fontWeight: '700' },
   name: { color: '#fff', fontSize: 22, fontWeight: '700', textAlign: 'center' },
-  statusText: { color: 'rgba(255,255,255,0.6)', fontSize: 15, textAlign: 'center' },
+  statusText: { color: 'rgba(255,255,255,0.7)', fontSize: 15, textAlign: 'center' },
   grid: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 16 },
   videoTile: { width: '48%', aspectRatio: 3 / 4, borderRadius: 16 },
   bottom: { alignItems: 'center', gap: 8, paddingBottom: 4 },
@@ -273,7 +337,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },

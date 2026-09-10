@@ -8,6 +8,7 @@ export const FRIENDS_STATE_QUERY = gql`
       username
       avatarUrl
       isOnline
+      bio
     }
     friendRequests {
       id

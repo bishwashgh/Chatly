@@ -32,6 +32,7 @@ import {
   Check,
   Image as ImageIcon,
   Paperclip,
+  Plus,
   ChevronLeft,
   RefreshCw,
   Reply,
@@ -316,6 +317,10 @@ export function ChatScreen({
   const renderItem = ({ item, index }: { item: any; index: number }) => {
     const isMine = item.sender.id === currentUserId;
     const showDay = index === 0 || !isSameDay(messages[index - 1].createdAt, item.createdAt);
+    const isNextSameSender =
+      index < messages.length - 1 &&
+      messages[index + 1].sender.id === item.sender.id &&
+      isSameDay(messages[index + 1].createdAt, item.createdAt);
 
     return (
       <View>
@@ -326,8 +331,15 @@ export function ChatScreen({
         )}
         <Swipeable
           overshootLeft={false}
-          renderLeftActions={() => <View style={styles.replyAction}><Reply size={18} color={colors.primary} /></View>}
-          onSwipeableOpen={() => { Haptics.selectionAsync(); setReplyingTo(item); }}
+          renderLeftActions={() => (
+            <View style={styles.replyAction}>
+              <Reply size={18} color={colors.primary} />
+            </View>
+          )}
+          onSwipeableOpen={() => {
+            Haptics.selectionAsync();
+            setReplyingTo(item);
+          }}
         >
           <LongPressGestureHandler
             onHandlerStateChange={({ nativeEvent }) => {
@@ -337,32 +349,63 @@ export function ChatScreen({
               }
             }}
           >
-            <View style={[styles.messageRow, { alignItems: isMine ? 'flex-end' : 'flex-start' }]}>
-            {isMine ? (
-              <LinearGradient colors={['#4A6CF7', '#34C1B0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.bubble, styles.bubbleMine]}>
-                {renderMessageContent(item)}
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaTextMine}>{formatTime(item.createdAt)}</Text>
-                  {item.isRead ? <CheckCheck size={13} color="#FFFFFF" /> : item.isDelivered ? <Check size={13} color="rgba(255,255,255,0.76)" /> : <Check size={13} color="rgba(255,255,255,0.48)" />}
+            <View
+              style={[
+                styles.messageRow,
+                {
+                  alignItems: isMine ? 'flex-end' : 'flex-start',
+                  paddingBottom: isNextSameSender ? 2 : 7,
+                  paddingTop: 2,
+                },
+              ]}
+            >
+              {isMine ? (
+                <LinearGradient
+                  colors={['#4A6CF7', '#34C1B0']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[
+                    styles.bubble,
+                    styles.bubbleMine,
+                    isNextSameSender && { borderBottomRightRadius: 18 },
+                  ]}
+                >
+                  {renderMessageContent(item)}
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaTextMine}>{formatTime(item.createdAt)}</Text>
+                    {item.isRead ? (
+                      <CheckCheck size={13} color="#FFFFFF" />
+                    ) : item.isDelivered ? (
+                      <Check size={13} color="rgba(255,255,255,0.76)" />
+                    ) : (
+                      <Check size={13} color="rgba(255,255,255,0.48)" />
+                    )}
+                  </View>
+                </LinearGradient>
+              ) : (
+                <View
+                  style={[
+                    styles.bubble,
+                    styles.bubbleOther,
+                    isNextSameSender && { borderBottomLeftRadius: 18 },
+                  ]}
+                >
+                  {renderMessageContent(item)}
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaTextOther}>{formatTime(item.createdAt)}</Text>
+                  </View>
                 </View>
-              </LinearGradient>
-            ) : (
-              <View style={[styles.bubble, styles.bubbleOther]}>
-                {renderMessageContent(item)}
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaTextOther}>{formatTime(item.createdAt)}</Text>
+              )}
+
+              {item.reactions?.length > 0 && (
+                <View style={styles.reactionRow}>
+                  {item.reactions.map((r: any) => (
+                    <Text key={r.id} style={styles.reactionEmoji}>
+                      {r.emoji}
+                    </Text>
+                  ))}
                 </View>
-              </View>
-            )}
-
-            {item.reactions?.length > 0 && (
-              <View style={styles.reactionRow}>
-                {item.reactions.map((r: any) => (
-                  <Text key={r.id} style={styles.reactionEmoji}>{r.emoji}</Text>
-                ))}
-              </View>
-            )}
-
+              )}
             </View>
           </LongPressGestureHandler>
         </Swipeable>
@@ -378,7 +421,11 @@ export function ChatScreen({
     >
       <AmbientBackground />
 
-      <View style={[styles.header, isDark && styles.headerDark, { paddingTop: Math.max(insets.top, spacing.sm) } ]}>
+      <BlurView
+        intensity={85}
+        tint={isDark ? 'dark' : 'light'}
+        style={[styles.header, isDark && styles.headerDark, { paddingTop: Math.max(insets.top, spacing.sm) }]}
+      >
         <Pressable style={styles.headerIconBtn} onPress={() => navigation?.goBack()}>
           <ChevronLeft size={22} color={colors.textPrimary} />
         </Pressable>
@@ -393,7 +440,7 @@ export function ChatScreen({
         <Pressable style={styles.headerIconBtn} onPress={() => handleCall('VIDEO')}>
           <VideoIcon size={18} color={colors.textPrimary} />
         </Pressable>
-      </View>
+      </BlurView>
 
       <FlashList
         ref={listRef}
@@ -430,7 +477,7 @@ export function ChatScreen({
       <View style={[styles.composerWrap, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <View style={[styles.composer, { maxWidth: screenWidth - spacing.md * 2 }]}>
           <Pressable onPress={() => setAttachmentVisible(true)} style={styles.composerIconBtn}>
-            <Paperclip size={21} color={colors.textSecondary} />
+            <Plus size={22} color={colors.primary} strokeWidth={2.5} />
           </Pressable>
           <Pressable onPress={() => setPickerVisible(true)} style={styles.composerIconBtn}>
             <Smile size={22} color={colors.textSecondary} />

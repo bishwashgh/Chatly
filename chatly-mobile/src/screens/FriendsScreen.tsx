@@ -195,7 +195,9 @@ export function FriendsScreen({ navigation }: any) {
         <Avatar uri={item.avatarUrl} name={item.name} size={48} isOnline={item.isOnline} />
         <View style={styles.cardText}>
           <Text style={styles.title} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>@{item.username}</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {item.bio ? item.bio : item.isOnline ? 'Online' : `@${item.username}`}
+          </Text>
         </View>
       </Pressable>
       <Pressable

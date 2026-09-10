@@ -188,31 +188,30 @@ export function ConversationsScreen({ navigation }: any) {
       <AmbientBackground />
 
       <View style={[styles.header, isDark && styles.headerDark]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open profile"
-          onPress={() => setProfileVisible(true)}
-        >
-          <Avatar uri={currentUser?.avatarUrl} name={currentUser?.name} size={38} />
-        </Pressable>
         <Text style={styles.headerTitle}>Chats</Text>
         <View style={styles.headerActions}>
-          <Pressable
-            style={styles.iconBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Find friends"
-            onPress={() => navigation.navigate('Friends')}
-          >
-            <UserPlus size={20} color={colors.textPrimary} />
-          </Pressable>
-          <Pressable style={styles.iconBtn} accessibilityRole="button" accessibilityLabel="Open call log" onPress={() => navigation.navigate('CallLog')}><PhoneCall size={19} color={colors.textPrimary} /></Pressable>
           <Pressable
             style={styles.iconBtn}
             accessibilityRole="button"
             accessibilityLabel="Start a new chat"
             onPress={openCompose}
           >
-            <SquarePen size={20} color={colors.textPrimary} />
+            <SquarePen size={19} color={colors.textPrimary} />
+          </Pressable>
+          <Pressable
+            style={styles.iconBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Open call log"
+            onPress={() => navigation.navigate('CallLog')}
+          >
+            <PhoneCall size={18} color={colors.textPrimary} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+            onPress={() => setProfileVisible(true)}
+          >
+            <Avatar uri={currentUser?.avatarUrl} name={currentUser?.name} size={36} />
           </Pressable>
         </View>
       </View>
