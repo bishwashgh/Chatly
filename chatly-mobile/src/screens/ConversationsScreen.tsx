@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, SquarePen, UserPlus, X, GripHorizontal, RefreshCw } from 'lucide-react-native';
+import { Search, SquarePen, UserPlus, X, GripHorizontal, RefreshCw, MessageCircle } from 'lucide-react-native';
 import { useQuery, useLazyQuery, useMutation } from '@apollo/client';
 import { MY_CONVERSATIONS_QUERY, CREATE_DIRECT_CONVERSATION } from '../graphql/conversations.gql';
 import { SEARCH_USERS } from '../graphql/users.gql';
@@ -263,9 +263,15 @@ export function ConversationsScreen({ navigation }: any) {
               </Pressable>
             </View>
           ) : (
-            <Text style={styles.empty}>
-              No conversations yet — tap the pencil to start one
-            </Text>
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}><MessageCircle size={28} color={colors.primary} /></View>
+              <Text style={styles.emptyTitle}>Start a conversation</Text>
+              <Text style={styles.empty}>Become friends first, then send your first message.</Text>
+              <Pressable style={styles.emptyCta} onPress={() => navigation.navigate('Friends')}>
+                <UserPlus size={16} color="#fff" />
+                <Text style={styles.retryText}>Find friends</Text>
+              </Pressable>
+            </View>
           )
         }
       />
@@ -434,7 +440,11 @@ const styles = StyleSheet.create({
   stateText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
   retryBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radii.full, paddingHorizontal: spacing.lg, paddingVertical: 10, marginTop: spacing.sm, ...shadows.sm },
   retryText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 60, paddingHorizontal: spacing.xl, lineHeight: 22 },
+  emptyState: { alignItems: 'center', marginTop: 54, paddingHorizontal: spacing.xl },
+  emptyIcon: { width: 68, height: 68, borderRadius: 24, backgroundColor: colors.lavender, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+  emptyTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '800' },
+  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 7, paddingHorizontal: spacing.xl, lineHeight: 22 },
+  emptyCta: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: colors.primary, borderRadius: radii.full, paddingHorizontal: spacing.lg, paddingVertical: 11, marginTop: spacing.lg, ...shadows.sm },
   emptySmall: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
   hint: { color: colors.textMuted, textAlign: 'center', marginTop: 32, fontSize: 14 },
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.35)' },

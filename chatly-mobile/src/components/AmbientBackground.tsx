@@ -6,10 +6,7 @@ import { colors } from '../lib/theme';
 function Blob({ style, color }: { style: any; color: string }) {
   return (
     <View pointerEvents="none" style={[styles.blobWrap, style]}>
-      <LinearGradient
-        colors={[color, 'rgba(244,250,249,0)']}
-        style={styles.blob}
-      />
+      <LinearGradient colors={[color, 'rgba(245,245,247,0)']} style={styles.blob} />
     </View>
   );
 }
@@ -18,10 +15,7 @@ export function AmbientBackground() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <View style={styles.base} />
-      <LinearGradient
-        colors={['rgba(255,255,255,0.92)', 'rgba(255,255,255,0)']}
-        style={styles.topWash}
-      />
+      <LinearGradient colors={['rgba(255,255,255,0.96)', 'rgba(255,255,255,0)']} style={styles.topWash} />
       <Blob style={styles.blobTopRight} color={colors.blobPink} />
       <Blob style={styles.blobMidLeft} color={colors.blobLavender} />
       <Blob style={styles.blobBottomCenter} color={colors.blobGray} />
@@ -32,15 +26,9 @@ export function AmbientBackground() {
 const styles = StyleSheet.create({
   base: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.bg },
   topWash: { position: 'absolute', top: 0, left: 0, right: 0, height: 220 },
-  blobWrap: {
-    position: 'absolute',
-    width: 360,
-    height: 360,
-    borderRadius: 180,
-    overflow: 'hidden',
-  },
+  blobWrap: { position: 'absolute', width: 360, height: 360, borderRadius: 180, overflow: 'hidden' },
   blob: { flex: 1 },
-  blobTopRight: { top: -145, right: -105, opacity: 0.85 },
-  blobMidLeft: { top: '24%', left: -160, width: 320, height: 320, borderRadius: 160, opacity: 0.75 },
-  blobBottomCenter: { bottom: -175, left: '30%', width: 410, height: 410, borderRadius: 205, opacity: 0.72 },
+  blobTopRight: { top: -145, right: -105, opacity: 0.7 },
+  blobMidLeft: { top: '24%', left: -160, width: 320, height: 320, borderRadius: 160, opacity: 0.62 },
+  blobBottomCenter: { bottom: -175, left: '30%', width: 410, height: 410, borderRadius: 205, opacity: 0.58 },
 });

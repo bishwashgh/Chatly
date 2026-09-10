@@ -1,38 +1,34 @@
 export const colors = {
-  // Calm, ocean-inspired canvas
-  bg: '#F4FAF9',
-  bgDeep: '#E7F4F1',
-  blobPink: '#FCE8DE',
-  blobLavender: '#CDEFEA',
-  blobGray: '#E4EEF0',
-  // Cards & surfaces
+  // Chatly: quiet iOS surfaces with an indigo → teal signature accent.
+  bg: '#F5F5F7',
+  bgDeep: '#ECECF0',
+  blobPink: '#E4E8FF',
+  blobLavender: '#D8F7F2',
+  blobGray: '#E3E3E8',
   surface: '#FFFFFF',
-  surfaceAlt: '#EFF8F6',
-  border: 'rgba(19,112,105,0.15)',
-  borderSoft: 'rgba(15,38,43,0.08)',
-  // Accents
-  primary: '#0F766E',
-  primaryDark: '#115E59',
-  primaryLight: '#2CB7A9',
-  lavender: '#DDF5F1',
-  accent: '#159A91',
-  danger: '#E04C64',
-  success: '#20B978',
-  // Dark floating accents
-  charcoal: '#102A2B',
-  dockActive: '#0F766E',
-  dockInactive: '#9BB1B1',
-  // Typography
-  textPrimary: '#102A2B',
-  textSecondary: '#5C7071',
-  textMuted: 'rgba(92,112,113,0.72)',
+  surfaceAlt: '#F0F0F3',
+  border: 'rgba(25,31,56,0.12)',
+  borderSoft: 'rgba(25,31,56,0.07)',
+  primary: '#4A6CF7',
+  primaryDark: '#4A6CF7',
+  primaryLight: '#34C1B0',
+  lavender: '#E8ECFF',
+  accent: '#4A6CF7',
+  danger: '#FF453A',
+  success: '#30D158',
+  charcoal: '#1C1C1E',
+  dockActive: '#4A6CF7',
+  dockInactive: '#8E8E93',
+  textPrimary: '#1C1C1E',
+  textSecondary: '#636366',
+  textMuted: 'rgba(99,99,102,0.72)',
 };
 
 export const gradients = {
-  primary: [colors.primaryDark, colors.primaryLight] as const,
-  header: ['#FFFFFF', '#F4FAF9'] as const,
-  bubbleMine: ['#DDF5F1', '#CDEFEA'] as const,
-  login: ['#FCE8DE', '#CDEFEA', '#F4FAF9'] as const,
+  primary: [colors.primary, colors.primaryLight] as const,
+  header: ['#FFFFFF', '#F5F5F7'] as const,
+  bubbleMine: ['#4A6CF7', '#34C1B0'] as const,
+  login: ['#E4E8FF', '#D8F7F2', '#F5F5F7'] as const,
 };
 
 export const shadows = {

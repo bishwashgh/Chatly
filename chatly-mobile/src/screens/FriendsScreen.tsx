@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, ChevronLeft, UserPlus, UserCheck, X, Clock, UserMinus, ShieldOff, RefreshCw } from 'lucide-react-native';
+import { Search, ChevronLeft, UserPlus, UserCheck, X, Clock, UserMinus, ShieldOff, RefreshCw, UsersRound, QrCode } from 'lucide-react-native';
 import { useQuery, useLazyQuery, useMutation } from '@apollo/client';
 import { FRIENDS_STATE_QUERY, SEND_FRIEND_REQUEST, ACCEPT_FRIEND_REQUEST, DECLINE_FRIEND_REQUEST, CANCEL_FRIEND_REQUEST, REMOVE_FRIEND, BLOCK_USER, UNBLOCK_USER } from '../graphql/friends.gql';
 import { SEARCH_USERS } from '../graphql/users.gql';
@@ -346,9 +346,15 @@ export function FriendsScreen({ navigation }: any) {
           onRefresh={refetch}
           contentContainerStyle={[styles.listContent, { paddingBottom: 96 + insets.bottom }]}
           ListEmptyComponent={renderQueryState(
-            <Text style={styles.empty}>
-              No friends yet.{'\n'}Open Suggestions to find people and start connecting.
-            </Text>
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}><UsersRound size={28} color={colors.primary} /></View>
+              <Text style={styles.emptyTitle}>Build your circle</Text>
+              <Text style={styles.empty}>Add your first friend to unlock private conversations.</Text>
+              <Pressable style={styles.emptyCta} onPress={() => setTab('add')}>
+                <UserPlus size={16} color="#fff" />
+                <Text style={styles.retryText}>Add a friend</Text>
+              </Pressable>
+            </View>
           )}
           ListFooterComponent={
             blockedUsers.length > 0 ? (
@@ -451,7 +457,14 @@ export function FriendsScreen({ navigation }: any) {
               ListEmptyComponent={<Text style={styles.emptySmall}>No people found</Text>}
             />
           ) : (
-            <Text style={styles.hint}>Search by name or username to find people and send a friend request.</Text>
+            <View style={styles.addIntro}>
+              <View style={styles.qrCard}>
+                <QrCode size={25} color={colors.primary} />
+                <View style={styles.qrCopy}><Text style={styles.qrTitle}>Have a QR code?</Text><Text style={styles.qrText}>Scan to add someone instantly.</Text></View>
+                <Pressable style={styles.qrButton} onPress={() => Alert.alert('QR scanner', 'Camera scanning will be available in the next build.')}><Text style={styles.qrButtonText}>Scan</Text></Pressable>
+              </View>
+              <Text style={styles.hint}>Search by name or username to find people and send a friend request.</Text>
+            </View>
           )}
         </View>
       )}
@@ -538,7 +551,18 @@ const styles = StyleSheet.create({
   stateText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
   retryBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radii.full, paddingHorizontal: spacing.lg, paddingVertical: 10, marginTop: spacing.sm, ...shadows.sm },
   retryText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 60, paddingHorizontal: spacing.xl, lineHeight: 22 },
+  emptyState: { alignItems: 'center', marginTop: 54, paddingHorizontal: spacing.xl },
+  emptyIcon: { width: 68, height: 68, borderRadius: 24, backgroundColor: colors.lavender, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+  emptyTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '800' },
+  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 7, paddingHorizontal: spacing.xl, lineHeight: 22 },
+  emptyCta: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: colors.primary, borderRadius: radii.full, paddingHorizontal: spacing.lg, paddingVertical: 11, marginTop: spacing.lg, ...shadows.sm },
+  addIntro: { paddingHorizontal: spacing.lg },
+  qrCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.borderSoft, ...shadows.sm },
+  qrCopy: { flex: 1 },
+  qrTitle: { color: colors.textPrimary, fontWeight: '800', fontSize: 14 },
+  qrText: { color: colors.textMuted, fontSize: 12, marginTop: 3 },
+  qrButton: { backgroundColor: colors.lavender, borderRadius: radii.full, paddingHorizontal: 14, paddingVertical: 8 },
+  qrButtonText: { color: colors.primary, fontWeight: '800', fontSize: 13 },
   emptySmall: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
   hint: { color: colors.textMuted, textAlign: 'center', marginTop: 32, fontSize: 14, paddingHorizontal: spacing.xl, lineHeight: 20 },
   sectionHeader: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs },

@@ -11,7 +11,6 @@ import { useAuth } from '../lib/AuthContext';
 export type RootStackParamList = {
   Conversations: undefined;
   Friends: undefined;
-  Profile: undefined;
   Chat: {
     conversationId: string;
     title?: string;
@@ -43,7 +42,6 @@ export function RootNavigator() {
         >
           <Stack.Screen name="Conversations" component={ConversationsScreen} />
           <Stack.Screen name="Friends" component={FriendsScreen} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="Chat">
             {({ route, navigation }) => (
               <ChatScreen

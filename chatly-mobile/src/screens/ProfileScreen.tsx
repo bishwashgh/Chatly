@@ -5,7 +5,6 @@ import { Bell, ChevronRight, HelpCircle, LockKeyhole, LogOut, Pencil, ShieldChec
 import { useAuth } from '../lib/AuthContext';
 import { Avatar } from '../components/Avatar';
 import { AmbientBackground } from '../components/AmbientBackground';
-import { FloatingDock } from '../components/FloatingDock';
 import { colors, radii, shadows, spacing } from '../lib/theme';
 
 export function ProfileScreen({ navigation }: any) {
@@ -62,7 +61,6 @@ export function ProfileScreen({ navigation }: any) {
         <Row icon={HelpCircle} title="Help & feedback" onPress={() => Alert.alert('Help & feedback', 'Thanks for helping make Chatly better.')} />
         <Row icon={LogOut} title="Log out" onPress={handleLogout} />
       </View>
-      <FloatingDock active="profile" navigation={navigation} />
     </View>
   );
 }
