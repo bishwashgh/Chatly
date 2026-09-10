@@ -12,9 +12,9 @@ export function BrandMark({ size = 88 }: { size?: number }) {
       end={{ x: 1, y: 1 }}
       style={[styles.mark, { width: size, height: size, borderRadius: size * 0.3 }]}
     >
-      <MessageCircle size={size * 0.46} color="#fff" strokeWidth={2.4} />
-      <View style={[styles.friend, { width: size * 0.28, height: size * 0.2, right: size * 0.12, bottom: size * 0.19, borderRadius: size * 0.12 }]}>
-        <UsersRound size={size * 0.18} color="#fff" strokeWidth={2.8} />
+      <MessageCircle size={size * 0.46} color="#fff" strokeWidth={2.25} />
+      <View style={[styles.friend, { width: size * 0.32, height: size * 0.23, right: size * 0.08, bottom: size * 0.16, borderRadius: size * 0.13 }]}>
+        <UsersRound size={size * 0.19} color="#fff" strokeWidth={2.7} />
       </View>
     </LinearGradient>
   );
@@ -22,5 +22,12 @@ export function BrandMark({ size = 88 }: { size?: number }) {
 
 const styles = StyleSheet.create({
   mark: { alignItems: 'center', justifyContent: 'center', ...shadows.md },
-  friend: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  friend: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255,255,255,0.24)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
 });

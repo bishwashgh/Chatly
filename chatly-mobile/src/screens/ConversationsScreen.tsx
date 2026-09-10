@@ -13,7 +13,8 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, SquarePen, UserPlus, X, GripHorizontal, RefreshCw, MessageCircle } from 'lucide-react-native';
+import { Search, SquarePen, UserPlus, X, GripHorizontal, RefreshCw, MessageCircle, PhoneCall } from 'lucide-react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useQuery, useLazyQuery, useMutation } from '@apollo/client';
 import { MY_CONVERSATIONS_QUERY, CREATE_DIRECT_CONVERSATION } from '../graphql/conversations.gql';
 import { SEARCH_USERS } from '../graphql/users.gql';
@@ -23,6 +24,7 @@ import { ProfileModal } from '../components/ProfileModal';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { FloatingDock } from '../components/FloatingDock';
 import { colors, radii, shadows, spacing } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
 
 type Filter = 'all' | 'unread' | 'groups';
 
@@ -61,6 +63,7 @@ function formatListTime(iso: string) {
 
 export function ConversationsScreen({ navigation }: any) {
   const { currentUser } = useAuth();
+  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const { data, loading, error, refetch } = useQuery(MY_CONVERSATIONS_QUERY);
   const [query, setQuery] = useState('');
@@ -139,7 +142,10 @@ export function ConversationsScreen({ navigation }: any) {
     const last = item.lastMessage;
     const preview = last ? messagePreview(last) : 'No messages yet';
 
+    const actions = () => <View style={styles.swipeActions}><Pressable style={[styles.swipeAction, styles.muteAction]} onPress={() => Alert.alert('Chat muted', `${title ?? 'Conversation'} notifications are muted.`)}><Text style={styles.swipeActionText}>Mute</Text></Pressable><Pressable style={[styles.swipeAction, styles.deleteAction]} onPress={() => Alert.alert('Delete chat', 'This chat will be removed from your list on this device.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive' }])}><Text style={styles.swipeActionText}>Delete</Text></Pressable></View>;
+
     return (
+      <Swipeable renderRightActions={actions} overshootRight={false}>
       <Pressable
         style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
         onPress={() =>
@@ -173,6 +179,7 @@ export function ConversationsScreen({ navigation }: any) {
           </View>
         </View>
       </Pressable>
+      </Swipeable>
     );
   };
 
@@ -180,7 +187,7 @@ export function ConversationsScreen({ navigation }: any) {
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
       <AmbientBackground />
 
-      <View style={styles.header}>
+      <View style={[styles.header, isDark && styles.headerDark]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open profile"
@@ -198,6 +205,7 @@ export function ConversationsScreen({ navigation }: any) {
           >
             <UserPlus size={20} color={colors.textPrimary} />
           </Pressable>
+          <Pressable style={styles.iconBtn} accessibilityRole="button" accessibilityLabel="Open call log" onPress={() => navigation.navigate('CallLog')}><PhoneCall size={19} color={colors.textPrimary} /></Pressable>
           <Pressable
             style={styles.iconBtn}
             accessibilityRole="button"
@@ -276,9 +284,9 @@ export function ConversationsScreen({ navigation }: any) {
         }
       />
 
-      <FloatingDock active="chats" navigation={navigation} />
+      <FloatingDock active="chats" navigation={navigation} unreadCount={conversations.reduce((sum: number, item: any) => sum + (item.unreadCount ?? 0), 0)} />
 
-      <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} />
+      <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} navigation={navigation} />
 
       <Modal visible={composeVisible} animationType="slide" transparent onRequestClose={closeCompose}>
         <Pressable style={styles.backdrop} onPress={closeCompose} />
@@ -361,6 +369,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
   },
+  headerDark: { backgroundColor: 'rgba(0,0,0,0.18)' },
   headerTitle: { flex: 1, color: colors.textPrimary, fontSize: 30, fontWeight: '800', letterSpacing: -0.8 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   iconBtn: {
@@ -376,7 +385,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radii.md,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
@@ -394,14 +403,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   chip: {
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: colors.surface,
     borderRadius: radii.full,
     paddingHorizontal: 18,
     paddingVertical: 9,
     borderWidth: 1,
     borderColor: colors.borderSoft,
   },
-  chipActive: { backgroundColor: colors.charcoal, borderColor: colors.charcoal, ...shadows.sm },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary, ...shadows.sm },
   chipLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
   chipLabelActive: { color: '#FFFFFF', fontWeight: '700' },
   listContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: 148 },
@@ -409,7 +418,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: 'rgba(255,255,255,0.94)',
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
     marginBottom: spacing.sm,
@@ -418,6 +427,11 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   cardPressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
+  swipeActions: { flexDirection: 'row', alignItems: 'stretch', marginBottom: spacing.sm, gap: 4 },
+  swipeAction: { width: 68, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md },
+  muteAction: { backgroundColor: colors.primary },
+  deleteAction: { backgroundColor: colors.danger },
+  swipeActionText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   cardText: { flex: 1 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
   cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
@@ -450,7 +464,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.35)' },
   sheetKeyboard: { width: '100%', maxHeight: '86%' },
   sheet: {
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,

@@ -21,17 +21,20 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Camera, X, LogOut, UserRoundX, ShieldCheck, GripHorizontal } from 'lucide-react-native';
+import { Camera, X, LogOut, UserRoundX, ShieldCheck, GripHorizontal, ChevronRight, PhoneCall, Bell, Lock, CircleHelp } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 import { UPDATE_PROFILE, DEACTIVATE_ACCOUNT } from '../graphql/users.gql';
 import { UPLOAD_MESSAGE_MEDIA } from '../graphql/messages.gql';
 import { useAuth } from '../lib/AuthContext';
 import { Avatar } from './Avatar';
 import { colors, radii, shadows, spacing } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
 
-type ProfileModalProps = { visible: boolean; onClose: () => void };
+type ProfileModalProps = { visible: boolean; onClose: () => void; navigation?: any };
 
-export function ProfileModal({ visible, onClose }: ProfileModalProps) {
+export function ProfileModal({ visible, onClose, navigation }: ProfileModalProps) {
   const { currentUser, updateUser, logout } = useAuth();
+  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const [name, setName] = useState('');
@@ -178,7 +181,7 @@ export function ProfileModal({ visible, onClose }: ProfileModalProps) {
           keyboardVerticalOffset={insets.top}
           style={styles.sheetKeyboard}
         >
-          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <BlurView intensity={78} tint={isDark ? 'dark' : 'light'} style={[styles.sheet, isDark && styles.sheetDark, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <View style={styles.grabber}><GripHorizontal size={22} color={colors.textMuted} /></View>
             <Animated.View style={[styles.hero, heroStyle]} pointerEvents="box-none">
               <Animated.View style={avatarStyle}>
@@ -224,6 +227,11 @@ export function ProfileModal({ visible, onClose }: ProfileModalProps) {
               </View>
 
               <View style={styles.divider} />
+              <Text style={styles.settingsHeading}>Settings</Text>
+              <SettingRow icon={<Lock size={17} color={colors.textSecondary} />} label="Privacy" navigation={navigation} />
+              <SettingRow icon={<Bell size={17} color={colors.textSecondary} />} label="Notifications" navigation={navigation} />
+              <SettingRow icon={<PhoneCall size={17} color={colors.textSecondary} />} label="Call history" navigation={navigation} />
+              <SettingRow icon={<CircleHelp size={17} color={colors.textSecondary} />} label="Help & Support" navigation={navigation} />
               <Pressable style={({ pressed }) => [styles.accountAction, pressed && styles.pressed]} onPress={handleLogout} disabled={actionDisabled}>
                 {loggingOut ? <ActivityIndicator size="small" color={colors.textSecondary} /> : <LogOut size={17} color={colors.textSecondary} />}
                 <Text style={styles.accountActionText}>Log out</Text>
@@ -233,11 +241,17 @@ export function ProfileModal({ visible, onClose }: ProfileModalProps) {
                 <Text style={styles.deactivateText}>Deactivate account</Text>
               </Pressable>
             </Animated.ScrollView>
-          </View>
+          </BlurView>
         </KeyboardAvoidingView>
       </View>
     </Modal>
   );
+}
+
+function SettingRow({ icon, label, navigation }: { icon: React.ReactNode; label: string; navigation?: any }) {
+  return <Pressable style={({ pressed }) => [styles.settingRow, pressed && styles.pressed]} onPress={() => label === 'Call history' && navigation ? navigation.navigate('CallLog') : Alert.alert(label, `${label} settings are coming soon.`)}>
+    {icon}<Text style={styles.settingLabel}>{label}</Text><ChevronRight size={16} color={colors.textMuted} />
+  </Pressable>;
 }
 
 const styles = StyleSheet.create({
@@ -254,6 +268,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
     ...shadows.lg,
   },
+  sheetDark: { backgroundColor: 'rgba(28,28,30,0.98)' },
   grabber: { alignItems: 'center', height: 22, justifyContent: 'center' },
   hero: { alignItems: 'center', justifyContent: 'flex-start', position: 'relative', overflow: 'hidden' },
   heroText: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
@@ -273,6 +288,9 @@ const styles = StyleSheet.create({
   securityNote: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: spacing.md },
   securityText: { flex: 1, color: colors.textMuted, fontSize: 11, lineHeight: 16 },
   divider: { height: 1, backgroundColor: colors.borderSoft, marginVertical: spacing.md },
+  settingsHeading: { color: colors.textMuted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.sm },
+  settingRow: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: 'rgba(239,248,246,0.6)', marginBottom: spacing.xs },
+  settingLabel: { flex: 1, color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   accountAction: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, borderRadius: radii.md, paddingHorizontal: spacing.sm, backgroundColor: 'rgba(239,248,246,0.9)', borderWidth: 1, borderColor: colors.borderSoft, marginBottom: spacing.sm },
   deactivateAction: { backgroundColor: 'rgba(224,76,100,0.08)', borderColor: 'rgba(224,76,100,0.22)' },
   accountActionText: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },

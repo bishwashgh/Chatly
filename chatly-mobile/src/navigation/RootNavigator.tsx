@@ -2,61 +2,37 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LoginScreen } from '../screens/LoginScreen';
+import { SignInScreen, SignUpScreen, OtpScreen, ForgotPasswordScreen, ResetPasswordScreen } from '../screens/AuthFlowScreens';
 import { ConversationsScreen } from '../screens/ConversationsScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { ChatScreen } from '../screens/ChatScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
+import { CallLogScreen } from '../screens/CallLogScreen';
 import { useAuth } from '../lib/AuthContext';
+import { useTheme } from '../lib/ThemeContext';
 
 export type RootStackParamList = {
-  Conversations: undefined;
-  Friends: undefined;
-  Chat: {
-    conversationId: string;
-    title?: string;
-    peerId?: string;
-    peerAvatarUrl?: string;
-    peerIsOnline?: boolean;
-  };
+  Landing: undefined; SignIn: undefined; SignUp: undefined; Otp: { challengeId: string; destination: string; mode: 'signup' }; ForgotPassword: undefined; ResetPassword: { email: string; challengeId: string };
+  Conversations: undefined; Friends: undefined; CallLog: undefined;
+  Chat: { conversationId: string; title?: string; peerId?: string; peerAvatarUrl?: string; peerIsOnline?: boolean };
 };
-
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { currentUser, isLoading } = useAuth();
-
+  const { currentUser, isLoading } = useAuth(); const { colors } = useTheme();
   if (isLoading) return null;
-
-  return (
-    <NavigationContainer>
-      {!currentUser ? (
-        <LoginScreen />
-      ) : (
-        <Stack.Navigator
-          screenOptions={{
-            headerShown: false,
-            animation: 'fade_from_bottom',
-            animationDuration: 240,
-            contentStyle: { backgroundColor: '#F4FAF9' },
-          }}
-        >
-          <Stack.Screen name="Conversations" component={ConversationsScreen} />
-          <Stack.Screen name="Friends" component={FriendsScreen} />
-          <Stack.Screen name="Chat">
-            {({ route, navigation }) => (
-              <ChatScreen
-                navigation={navigation}
-                conversationId={route.params.conversationId}
-                currentUserId={currentUser.id}
-                peerId={route.params?.peerId}
-                peerName={route.params?.title}
-                peerAvatarUrl={route.params?.peerAvatarUrl}
-                peerIsOnline={route.params?.peerIsOnline}
-              />
-            )}
-          </Stack.Screen>
-        </Stack.Navigator>
-      )}
-    </NavigationContainer>
-  );
+  return <NavigationContainer>
+    {!currentUser ? <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: colors.bg } }}>
+      <Stack.Screen name="Landing" component={LoginScreen} />
+      <Stack.Screen name="SignIn" component={SignInScreen} />
+      <Stack.Screen name="SignUp" component={SignUpScreen} />
+      <Stack.Screen name="Otp" component={OtpScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+    </Stack.Navigator> : <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: colors.bg } }}>
+      <Stack.Screen name="Conversations" component={ConversationsScreen} />
+      <Stack.Screen name="Friends" component={FriendsScreen} />
+      <Stack.Screen name="CallLog" component={CallLogScreen} />
+      <Stack.Screen name="Chat">{({ route, navigation }) => <ChatScreen navigation={navigation} conversationId={route.params.conversationId} currentUserId={currentUser.id} peerId={route.params?.peerId} peerName={route.params?.title} peerAvatarUrl={route.params?.peerAvatarUrl} peerIsOnline={route.params?.peerIsOnline} />}</Stack.Screen>
+    </Stack.Navigator>}
+  </NavigationContainer>;
 }

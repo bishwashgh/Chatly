@@ -6,10 +6,12 @@ import { useAuth } from '../lib/AuthContext';
 import { Avatar } from '../components/Avatar';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { colors, radii, shadows, spacing } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
 
 export function ProfileScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { currentUser, logout } = useAuth();
+  const { isDark } = useTheme();
   const [notifications, setNotifications] = React.useState(true);
 
   const handleLogout = () => {
@@ -31,7 +33,7 @@ export function ProfileScreen({ navigation }: any) {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       <AmbientBackground />
       <View style={styles.header}><Text style={styles.headerTitle}>Profile</Text><View style={styles.headerRule} /></View>
       <View style={styles.profileCard}>
@@ -67,6 +69,7 @@ export function ProfileScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  containerDark: { backgroundColor: '#000000' },
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.md },
   headerTitle: { color: colors.textPrimary, fontSize: 32, fontWeight: '800', letterSpacing: -0.8 },
   headerRule: { width: 32, height: 4, borderRadius: 2, backgroundColor: colors.primaryLight, marginTop: 8 },

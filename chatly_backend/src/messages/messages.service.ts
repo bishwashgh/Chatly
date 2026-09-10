@@ -88,6 +88,14 @@ export class MessagesService {
     return true;
   }
 
+  async deleteMessage(userId: string, messageId: string) {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) throw new NotFoundException('Message not found');
+    if (message.senderId !== userId) throw new ForbiddenException('You can only delete your own messages');
+    await this.prisma.message.delete({ where: { id: messageId } });
+    return true;
+  }
+
   async markAsRead(userId: string, conversationId: string, messageId: string) {
     await this.assertParticipant(userId, conversationId);
 

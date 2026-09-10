@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,15 +8,18 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import { ArrowRight, Check, MessageCircle } from 'lucide-react-native';
+import { ArrowRight, Check } from 'lucide-react-native';
+import { BrandMark } from '../components/BrandMark';
 import { ShinyButton } from '../components/ShinyButton';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { useAuth } from '../lib/AuthContext';
-import { colors, gradients, radii, shadows, spacing } from '../lib/theme';
+import { colors, radii, shadows, spacing } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
 
-export function LoginScreen() {
+export function LoginScreen({ navigation }: { navigation: any }) {
   const insets = useSafeAreaInsets();
   const { loginWithGoogle } = useAuth();
+  const { isDark } = useTheme();
   const [signingIn, setSigningIn] = useState(false);
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(24);
@@ -46,7 +48,7 @@ export function LoginScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { backgroundColor: isDark ? '#000000' : colors.bg }]}>
       <AmbientBackground />
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
@@ -55,13 +57,11 @@ export function LoginScreen() {
       >
         <Animated.View style={[styles.content, animatedStyle]}>
           <View style={styles.brandRow}>
-            <LinearGradient colors={gradients.primary} style={styles.brandIcon}>
-              <MessageCircle size={21} color="#fff" strokeWidth={2.5} />
-            </LinearGradient>
+            <BrandMark size={48} />
             <Text style={styles.brandName}>Chatly</Text>
           </View>
 
-          <View style={styles.card}>
+          <View style={[styles.card, isDark && styles.cardDark]}>
             <View style={styles.eyebrow}>
               <View style={styles.eyebrowDot} />
               <Text style={styles.eyebrowText}>A BETTER WAY TO CONNECT</Text>
@@ -85,6 +85,8 @@ export function LoginScreen() {
               />
             </View>
             {!signingIn && <View style={styles.buttonHint}><Text style={styles.buttonHintText}>Secure sign-in</Text><ArrowRight size={14} color={colors.textMuted} /></View>}
+            <Pressable style={styles.emailButton} onPress={() => navigation.navigate('SignIn')}><Text style={styles.emailButtonText}>Sign in with email</Text></Pressable>
+            <Pressable style={styles.signupLink} onPress={() => navigation.navigate('SignUp')}><Text style={styles.buttonHintText}>New to Chatly? </Text><Text style={styles.signupText}>Create an account</Text></Pressable>
 
             <Text style={styles.footnote}>By continuing, you agree to Chatly's Terms & Privacy Policy.</Text>
           </View>
@@ -112,6 +114,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.95)',
     ...shadows.lg,
   },
+  cardDark: { backgroundColor: 'rgba(28,28,30,0.94)', borderColor: 'rgba(255,255,255,0.12)' },
   title: { color: colors.textPrimary, fontSize: 30, lineHeight: 35, fontWeight: '800', letterSpacing: -0.7, textAlign: 'center' },
   subtitle: { color: colors.textSecondary, textAlign: 'center', marginTop: 12, marginBottom: 22, lineHeight: 22, fontSize: 15 },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 18 },
@@ -123,5 +126,9 @@ const styles = StyleSheet.create({
   buttonWrap: { width: '100%', alignItems: 'center' },
   buttonHint: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 11 },
   buttonHintText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  emailButton: { width: '100%', minHeight: 50, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, backgroundColor: colors.surface },
+  emailButtonText: { color: colors.textPrimary, fontWeight: '700', fontSize: 15 },
+  signupLink: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg },
+  signupText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
   footnote: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 22, maxWidth: 270, lineHeight: 17 },
 });

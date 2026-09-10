@@ -4,8 +4,8 @@
     "slug": "chatly",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#F4FAF9",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F5F5F7",
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": false,
@@ -21,13 +21,13 @@
       "package": "com.chatly.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#F4FAF9"
+        "backgroundColor": "#F5F5F7"
       }
     },
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F4FAF9"
+      "backgroundColor": "#F5F5F7"
     },
     "plugins": [
       [
@@ -37,6 +37,8 @@
         }
       ],
       "./plugins/withLiveKitPermissions",
+      "expo-camera",
+      "expo-document-picker",
       [
         "expo-build-properties",
         {

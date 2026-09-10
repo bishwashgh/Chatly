@@ -17,9 +17,12 @@ import { SEARCH_USERS } from '../graphql/users.gql';
 import { CREATE_DIRECT_CONVERSATION } from '../graphql/conversations.gql';
 import { useAuth } from '../lib/AuthContext';
 import { Avatar } from '../components/Avatar';
+import { ProfileModal } from '../components/ProfileModal';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { FloatingDock } from '../components/FloatingDock';
 import { colors, radii, shadows, spacing } from '../lib/theme';
+import { QrScannerModal } from '../components/QrScannerModal';
+import { useTheme } from '../lib/ThemeContext';
 
 type Tab = 'friends' | 'requests' | 'add';
 type Status = 'FRIENDS' | 'INCOMING' | 'OUTGOING';
@@ -32,12 +35,15 @@ const TABS: { key: Tab; label: string }[] = [
 
 export function FriendsScreen({ navigation }: any) {
   const { currentUser } = useAuth();
+  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const { data, loading, error, refetch } = useQuery(FRIENDS_STATE_QUERY);
   const [tab, setTab] = useState<Tab>('friends');
   const [search, setSearch] = useState('');
   const [searchUsers, { data: searchData, loading: searching }] = useLazyQuery(SEARCH_USERS);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [profileVisible, setProfileVisible] = useState(false);
+  const [qrVisible, setQrVisible] = useState(false);
 
   const [sendRequest] = useMutation(SEND_FRIEND_REQUEST);
   const [acceptRequest] = useMutation(ACCEPT_FRIEND_REQUEST);
@@ -69,6 +75,14 @@ export function FriendsScreen({ navigation }: any) {
   const handleSearch = (text: string) => {
     setSearch(text);
     if (text.trim()) searchUsers({ variables: { query: text.trim() } });
+  };
+
+  const handleQrScanned = (value: string) => {
+    setQrVisible(false);
+    const username = value.replace(/^chatly:\/\//, '').replace(/^@/, '').split(/[/?#]/)[0];
+    setTab('add');
+    handleSearch(username);
+    Alert.alert('QR code scanned', `Searching for @${username}`);
   };
 
   const run = async (mutation: any, userId: string, successNote?: string) => {
@@ -306,13 +320,13 @@ export function FriendsScreen({ navigation }: any) {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <AmbientBackground />
 
-      <View style={styles.header}>
+      <View style={[styles.header, isDark && styles.headerDark]}>
         <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} accessibilityLabel="Go back">
           <ChevronLeft size={22} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Friends</Text>
-        <Pressable style={styles.backBtn} onPress={() => setTab('add')} accessibilityLabel="Add friends">
-          <UserPlus size={19} color={colors.textPrimary} />
+        <Pressable onPress={() => setProfileVisible(true)} accessibilityRole="button" accessibilityLabel="Open profile">
+          <Avatar uri={currentUser?.avatarUrl} name={currentUser?.name} size={36} />
         </Pressable>
       </View>
 
@@ -461,7 +475,7 @@ export function FriendsScreen({ navigation }: any) {
               <View style={styles.qrCard}>
                 <QrCode size={25} color={colors.primary} />
                 <View style={styles.qrCopy}><Text style={styles.qrTitle}>Have a QR code?</Text><Text style={styles.qrText}>Scan to add someone instantly.</Text></View>
-                <Pressable style={styles.qrButton} onPress={() => Alert.alert('QR scanner', 'Camera scanning will be available in the next build.')}><Text style={styles.qrButtonText}>Scan</Text></Pressable>
+                <Pressable style={styles.qrButton} onPress={() => setQrVisible(true)}><Text style={styles.qrButtonText}>Scan</Text></Pressable>
               </View>
               <Text style={styles.hint}>Search by name or username to find people and send a friend request.</Text>
             </View>
@@ -470,6 +484,8 @@ export function FriendsScreen({ navigation }: any) {
       )}
 
       <FloatingDock active="friends" navigation={navigation} />
+      <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} navigation={navigation} />
+      <QrScannerModal visible={qrVisible} onClose={() => setQrVisible(false)} onScanned={handleQrScanned} />
     </View>
   );
 }
@@ -492,13 +508,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     ...shadows.sm,
   },
+  headerDark: { backgroundColor: 'rgba(0,0,0,0.18)' },
   headerTitle: { color: colors.textPrimary, fontSize: 25, fontWeight: '800', letterSpacing: -0.4 },
   tabBar: {
     flexDirection: 'row',
     gap: 4,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
-    backgroundColor: 'rgba(255,255,255,0.86)',
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: 5,
     borderWidth: 1,
@@ -514,7 +531,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: radii.full,
   },
-  tabActive: { backgroundColor: colors.charcoal, ...shadows.sm },
+  tabActive: { backgroundColor: colors.primary, ...shadows.sm },
   tabLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
   tabLabelActive: { color: '#fff', fontWeight: '700' },
   tabBadge: {
@@ -532,7 +549,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: 'rgba(255,255,255,0.94)',
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
     marginBottom: spacing.sm,
@@ -557,7 +574,12 @@ const styles = StyleSheet.create({
   empty: { color: colors.textMuted, textAlign: 'center', marginTop: 7, paddingHorizontal: spacing.xl, lineHeight: 22 },
   emptyCta: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: colors.primary, borderRadius: radii.full, paddingHorizontal: spacing.lg, paddingVertical: 11, marginTop: spacing.lg, ...shadows.sm },
   addIntro: { paddingHorizontal: spacing.lg },
-  qrCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.borderSoft, ...shadows.sm },
+  qrCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md,    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+ ...shadows.sm },
   qrCopy: { flex: 1 },
   qrTitle: { color: colors.textPrimary, fontWeight: '800', fontSize: 14 },
   qrText: { color: colors.textMuted, fontSize: 12, marginTop: 3 },
@@ -587,7 +609,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radii.md,
     marginHorizontal: spacing.lg,
     marginVertical: spacing.sm,

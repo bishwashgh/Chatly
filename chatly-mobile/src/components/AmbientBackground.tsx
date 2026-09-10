@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
 
 function Blob({ style, color }: { style: any; color: string }) {
   return (
@@ -12,10 +12,11 @@ function Blob({ style, color }: { style: any; color: string }) {
 }
 
 export function AmbientBackground() {
+  const { colors, isDark } = useTheme();
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View style={styles.base} />
-      <LinearGradient colors={['rgba(255,255,255,0.96)', 'rgba(255,255,255,0)']} style={styles.topWash} />
+      <View style={[styles.base, { backgroundColor: colors.bg }]} />
+      <LinearGradient colors={isDark ? ['rgba(28,28,30,0.86)', 'rgba(0,0,0,0)'] : ['rgba(255,255,255,0.96)', 'rgba(255,255,255,0)']} style={styles.topWash} />
       <Blob style={styles.blobTopRight} color={colors.blobPink} />
       <Blob style={styles.blobMidLeft} color={colors.blobLavender} />
       <Blob style={styles.blobBottomCenter} color={colors.blobGray} />
@@ -24,7 +25,7 @@ export function AmbientBackground() {
 }
 
 const styles = StyleSheet.create({
-  base: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.bg },
+  base: { ...StyleSheet.absoluteFillObject },
   topWash: { position: 'absolute', top: 0, left: 0, right: 0, height: 220 },
   blobWrap: { position: 'absolute', width: 360, height: 360, borderRadius: 180, overflow: 'hidden' },
   blob: { flex: 1 },

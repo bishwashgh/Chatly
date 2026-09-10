@@ -42,10 +42,15 @@ model User {
   bio            String?
   avatarUrl      String?
   googleId       String?  @unique
+  passwordHash   String?
   isOnline       Boolean  @default(false)
   isActive       Boolean  @default(true)
   lastSeen       DateTime @default(now())
   refreshToken   String?
+  signupCodeHash String?
+  signupCodeExpiresAt DateTime?
+  resetCodeHash  String?
+  resetCodeExpiresAt DateTime?
   createdAt      DateTime @default(now())
 
   participants          ConversationParticipant[]
@@ -65,7 +70,6 @@ model Conversation {
   isGroup      Boolean  @default(false)
   title        String?
   createdAt    DateTime @default(now())
-
   participants ConversationParticipant[]
   messages     Message[]
 }
@@ -75,10 +79,8 @@ model ConversationParticipant {
   conversationId String
   userId         String
   joinedAt       DateTime     @default(now())
-
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@unique([conversationId, userId])
 }
 
@@ -92,7 +94,6 @@ model Message {
   isRead         Boolean      @default(false)
   isDelivered    Boolean      @default(false)
   createdAt      DateTime     @default(now())
-
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
   reactions      Reaction[]
@@ -104,10 +105,8 @@ model Reaction {
   userId    String
   emoji     String
   createdAt DateTime @default(now())
-
   message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@unique([messageId, userId, emoji])
 }
 
@@ -118,7 +117,6 @@ model CustomEmoji {
   category   String   @default("custom")
   uploadedBy String?
   createdAt  DateTime @default(now())
-
   uploader   User?    @relation(fields: [uploadedBy], references: [id])
 }
 
@@ -129,10 +127,8 @@ model Friendship {
   status      FriendshipStatus @default(PENDING)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-
   requester   User @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
   addressee   User @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
-
   @@unique([requesterId, addresseeId])
   @@index([addresseeId, status])
 }
@@ -142,10 +138,8 @@ model BlockedUser {
   blockerId String
   blockedId String
   createdAt DateTime @default(now())
-
   blocker   User @relation("UserBlocks", fields: [blockerId], references: [id], onDelete: Cascade)
   blocked   User @relation("UserBlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
-
   @@unique([blockerId, blockedId])
   @@index([blockedId])
 }
@@ -160,7 +154,6 @@ model CallSession {
   status       CallStatus @default(RINGING)
   startedAt    DateTime   @default(now())
   endedAt      DateTime?
-
   caller       User       @relation("CallerSessions", fields: [callerId], references: [id], onDelete: Cascade)
   recipient    User       @relation("RecipientSessions", fields: [recipientId], references: [id], onDelete: Cascade)
 }

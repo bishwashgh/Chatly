@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useSubscription } from '@apollo/client';
 import { Image } from 'expo-image';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
-import { PhoneOff, Phone, Mic, MicOff } from 'lucide-react-native';
+import { PhoneOff, Phone, Mic, MicOff, Video as VideoIcon, Camera, RotateCcw, Volume2, VolumeX } from 'lucide-react-native';
 import {
   LiveKitRoom,
   useTracks,
@@ -12,7 +12,7 @@ import {
   isTrackReference,
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
-import { INCOMING_CALL_SUBSCRIPTION, END_CALL } from '../graphql/calls.gql';
+import { INCOMING_CALL_SUBSCRIPTION, END_CALL, UPDATE_CALL_STATUS } from '../graphql/calls.gql';
 import { useCall, ActiveCall } from '../lib/CallContext';
 
 const LIVEKIT_URL = process.env.EXPO_PUBLIC_LIVEKIT_URL ?? '';
@@ -84,6 +84,8 @@ type CallRoomContentProps = {
 
 function CallRoomContent({ call, phase, setPhase, isMuted, setIsMuted, elapsed, handleEnd }: CallRoomContentProps) {
   const isVideo = call.callType === 'VIDEO';
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [speakerEnabled, setSpeakerEnabled] = useState(false);
   const tracks = useTracks([isVideo ? Track.Source.Camera : Track.Source.Microphone]);
   const hasRemote = tracks.some((t) => !t.participant?.isLocal);
 
@@ -96,7 +98,10 @@ function CallRoomContent({ call, phase, setPhase, isMuted, setIsMuted, elapsed, 
   return (
     <>
       {isVideo ? (
-        <VideoCallGrid />
+        <View style={styles.videoStage}>
+          <VideoCallGrid />
+          <View style={styles.selfView}><VideoIcon size={18} color="rgba(255,255,255,0.72)" /><Text style={styles.selfViewText}>You</Text></View>
+        </View>
       ) : (
         <View style={styles.centerContent}>
           <RingAvatar peer={call.peer} />
@@ -115,6 +120,15 @@ function CallRoomContent({ call, phase, setPhase, isMuted, setIsMuted, elapsed, 
               <Pressable style={[styles.controlBtn, isMuted && styles.activeControlBtn]} onPress={() => setIsMuted(!isMuted)}>
                 {isMuted ? <MicOff size={24} color="#fff" /> : <Mic size={24} color="#fff" />}
               </Pressable>
+              {isVideo && <Pressable style={[styles.controlBtn, !cameraEnabled && styles.activeControlBtn]} onPress={() => setCameraEnabled(!cameraEnabled)}>
+                {cameraEnabled ? <Camera size={24} color="#fff" /> : <VideoIcon size={24} color="#fff" />}
+              </Pressable>}
+              {isVideo && <Pressable style={styles.controlBtn} onPress={() => setSpeakerEnabled(!speakerEnabled)}>
+                {speakerEnabled ? <Volume2 size={24} color="#fff" /> : <VolumeX size={24} color="#fff" />}
+              </Pressable>}
+              {isVideo && <Pressable style={styles.controlBtn} onPress={() => {}}>
+                <RotateCcw size={22} color="#fff" />
+              </Pressable>}
               <Pressable style={[styles.controlBtn, styles.hangupBtn]} onPress={handleEnd}>
                 <PhoneOff size={24} color="#fff" />
               </Pressable>
@@ -137,6 +151,7 @@ export function CallModal({ currentUserId }: CallModalProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [endCall] = useMutation(END_CALL);
+  const [updateCallStatus] = useMutation(UPDATE_CALL_STATUS);
 
   useSubscription(INCOMING_CALL_SUBSCRIPTION, {
     variables: { userId: currentUserId },
@@ -172,6 +187,7 @@ export function CallModal({ currentUserId }: CallModalProps) {
 
   const handleEnd = async () => {
     try {
+      await updateCallStatus({ variables: { sessionId: activeCall.sessionId, status: phase === 'incoming' ? 'DECLINED' : 'ENDED' } });
       await endCall({ variables: { sessionId: activeCall.sessionId } });
     } catch {
       // ignore — closing locally regardless
@@ -197,7 +213,7 @@ export function CallModal({ currentUserId }: CallModalProps) {
               </Pressable>
               <Pressable
                 style={[styles.controlBtn, styles.acceptBtn]}
-                onPress={() => setPhase('connected')}
+                onPress={async () => { await updateCallStatus({ variables: { sessionId: activeCall.sessionId, status: 'ACCEPTED' } }); setPhase('connected'); }}
               >
                 <Phone size={26} color="#fff" />
               </Pressable>
@@ -229,14 +245,17 @@ export function CallModal({ currentUserId }: CallModalProps) {
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: '#0A0A0A', paddingHorizontal: 24 },
+  overlay: { flex: 1, backgroundColor: '#000000', paddingHorizontal: 24 },
   centerContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  videoStage: { flex: 1, position: 'relative', backgroundColor: '#050509' },
+  selfView: { position: 'absolute', right: 4, top: 16, width: 92, height: 124, borderRadius: 18, backgroundColor: 'rgba(28,28,30,0.88)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  selfViewText: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 5 },
   ringHalo: {
     position: 'absolute',
     width: 152,
     height: 152,
     borderRadius: 76,
-    backgroundColor: 'rgba(109,40,217,0.35)',
+    backgroundColor: 'rgba(74,108,247,0.35)',
   },
   avatarFallback: {
     backgroundColor: '#1D1D27',
@@ -258,7 +277,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeControlBtn: { backgroundColor: '#6D28D9' },
+  activeControlBtn: { backgroundColor: '#4A6CF7' },
   acceptBtn: { backgroundColor: '#22C55E' },
   declineBtn: { backgroundColor: '#EF4444' },
   hangupBtn: { backgroundColor: '#EF4444' },

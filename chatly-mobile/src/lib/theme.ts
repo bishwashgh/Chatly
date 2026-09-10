@@ -1,8 +1,8 @@
 export const colors = {
-  // Chatly: quiet iOS surfaces with an indigo → teal signature accent.
+  // Chatly signature: indigo → teal, with quiet iOS system surfaces.
   bg: '#F5F5F7',
   bgDeep: '#ECECF0',
-  blobPink: '#E4E8FF',
+  blobPink: '#DDE4FF',
   blobLavender: '#D8F7F2',
   blobGray: '#E3E3E8',
   surface: '#FFFFFF',
@@ -10,7 +10,7 @@ export const colors = {
   border: 'rgba(25,31,56,0.12)',
   borderSoft: 'rgba(25,31,56,0.07)',
   primary: '#4A6CF7',
-  primaryDark: '#4A6CF7',
+  primaryDark: '#3856D6',
   primaryLight: '#34C1B0',
   lavender: '#E8ECFF',
   accent: '#4A6CF7',
@@ -24,10 +24,29 @@ export const colors = {
   textMuted: 'rgba(99,99,102,0.72)',
 };
 
+export const darkColors = {
+  ...colors,
+  bg: '#000000',
+  bgDeep: '#1C1C1E',
+  blobPink: '#202B61',
+  blobLavender: '#123C3A',
+  blobGray: '#25252A',
+  surface: '#1C1C1E',
+  surfaceAlt: '#2C2C2E',
+  border: 'rgba(255,255,255,0.16)',
+  borderSoft: 'rgba(255,255,255,0.08)',
+  lavender: '#26356F',
+  charcoal: '#F5F5F7',
+  dockInactive: '#98989D',
+  textPrimary: '#F5F5F7',
+  textSecondary: '#AEAEB2',
+  textMuted: 'rgba(174,174,178,0.72)',
+};
+
 export const gradients = {
   primary: [colors.primary, colors.primaryLight] as const,
   header: ['#FFFFFF', '#F5F5F7'] as const,
-  bubbleMine: ['#4A6CF7', '#34C1B0'] as const,
+  bubbleMine: [colors.primary, colors.primaryLight] as const,
   login: ['#E4E8FF', '#D8F7F2', '#F5F5F7'] as const,
 };
 

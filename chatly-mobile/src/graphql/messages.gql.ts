@@ -42,6 +42,12 @@ export const TOGGLE_REACTION = gql`
   }
 `;
 
+export const DELETE_MESSAGE = gql`
+  mutation DeleteMessage($messageId: ID!) {
+    deleteMessage(messageId: $messageId)
+  }
+`;
+
 export const TYPING = gql`
   mutation Typing($conversationId: ID!, $isTyping: Boolean!) {
     typing(conversationId: $conversationId, isTyping: $isTyping)

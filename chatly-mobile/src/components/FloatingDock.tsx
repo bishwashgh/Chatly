@@ -1,8 +1,12 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { MessageCircle, UsersRound } from 'lucide-react-native';
 import { colors, radii, shadows, spacing } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
 
 export type DockTab = 'chats' | 'friends';
 const TABS: { key: DockTab; label: string; Icon: any }[] = [
@@ -10,11 +14,17 @@ const TABS: { key: DockTab; label: string; Icon: any }[] = [
   { key: 'friends', label: 'Friends', Icon: UsersRound },
 ];
 
-export function FloatingDock({ active, navigation }: { active: DockTab; navigation: any }) {
+export function FloatingDock({ active, navigation, unreadCount = 0 }: { active: DockTab; navigation: any; unreadCount?: number }) {
   const insets = useSafeAreaInsets();
+  const { isDark } = useTheme();
+  const activeIndex = active === 'chats' ? 0 : 1;
+  const highlightX = useSharedValue(activeIndex);
+  highlightX.value = withSpring(activeIndex, { damping: 16, stiffness: 180, mass: 0.7 });
+  const highlightStyle = useAnimatedStyle(() => ({ transform: [{ translateX: highlightX.value * 100 }] }));
   const bottom = Math.max(insets.bottom, 10) + 8;
   return (
-    <View style={[styles.dock, { bottom }]}>
+    <BlurView intensity={72} tint={isDark ? 'dark' : 'light'} style={[styles.dock, isDark && styles.dockDark, { bottom }]}>
+      <Animated.View pointerEvents="none" style={[styles.slidingHighlight, highlightStyle]} />
       {TABS.map(({ key, label, Icon }) => {
         const isActive = active === key;
         return (
@@ -24,31 +34,34 @@ export function FloatingDock({ active, navigation }: { active: DockTab; navigati
             accessibilityState={{ selected: isActive }}
             accessibilityLabel={label}
             style={({ pressed }) => [styles.tab, isActive && styles.tabActive, pressed && styles.pressed]}
-            onPress={() => navigation.navigate(key === 'chats' ? 'Conversations' : 'Friends')}
+            onPress={() => { Haptics.selectionAsync(); navigation.navigate(key === 'chats' ? 'Conversations' : 'Friends'); }}
           >
-            <Icon size={23} color={isActive ? '#FFFFFF' : colors.dockInactive} strokeWidth={isActive ? 2.5 : 1.9} />
+            <View style={styles.iconWrap}>
+              <Icon size={23} color={isActive ? '#FFFFFF' : colors.dockInactive} strokeWidth={isActive ? 2.5 : 1.9} />
+              {key === 'chats' && unreadCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text></View>}
+            </View>
             {isActive && <Text style={styles.label}>{label}</Text>}
           </Pressable>
         );
       })}
-    </View>
+    </BlurView>
   );
 }
 
 const styles = StyleSheet.create({
   dock: {
     position: 'absolute',
-    left: '18%',
-    right: '18%',
-    height: 60,
+    left: '17%',
+    right: '17%',
+    height: 62,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: 'rgba(255,255,255,0.84)',
+    backgroundColor: 'rgba(255,255,255,0.76)',
     borderRadius: radii.full,
     padding: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.95)',
+    borderColor: 'rgba(255,255,255,0.92)',
     ...shadows.dock,
   },
   tab: {
@@ -60,7 +73,12 @@ const styles = StyleSheet.create({
     gap: 7,
     borderRadius: radii.full,
   },
-  tabActive: { backgroundColor: colors.primary, ...shadows.sm },
+  dockDark: { backgroundColor: 'rgba(28,28,30,0.78)', borderColor: 'rgba(255,255,255,0.14)' },
+  tabActive: { backgroundColor: 'transparent' },
+  slidingHighlight: { position: 'absolute', left: 5, top: 5, bottom: 5, width: '50%', borderRadius: radii.full, backgroundColor: colors.primary, ...shadows.sm },
+  iconWrap: { position: 'relative' },
+  badge: { position: 'absolute', top: -8, right: -10, minWidth: 16, height: 16, paddingHorizontal: 4, borderRadius: 8, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff' },
+  badgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
   label: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   pressed: { opacity: 0.78, transform: [{ scale: 0.96 }] },
 });

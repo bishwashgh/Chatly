@@ -7,16 +7,18 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { apolloClient } from './src/lib/apolloClient';
 import { AuthProvider, useAuth } from './src/lib/AuthContext';
 import { CallProvider } from './src/lib/CallContext';
+import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { CallModal } from './src/components/CallModal';
-import { colors } from './src/lib/theme';
 import './global.css';
 
 function AppShell() {
   const { currentUser } = useAuth();
+  const { isDark } = useTheme();
   return (
     <CallProvider>
       {currentUser && <CallModal currentUserId={currentUser.id} />}
+      <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={isDark ? '#000000' : '#F5F5F7'} translucent={false} />
       <RootNavigator />
     </CallProvider>
   );
@@ -27,10 +29,11 @@ export default function App() {
     <ApolloProvider client={apolloClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <StatusBar style="dark" backgroundColor={colors.bg} translucent={false} />
-          <AuthProvider>
-            <AppShell />
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <AppShell />
+            </AuthProvider>
+          </ThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ApolloProvider>

@@ -42,6 +42,12 @@ export class MessagesResolver {
 
   @UseGuards(GqlAuthGuard)
   @Mutation(() => Boolean)
+  deleteMessage(@CurrentUser() user: { id: string }, @Args('messageId', { type: () => ID }) messageId: string) {
+    return this.messagesService.deleteMessage(user.id, messageId);
+  }
+
+  @UseGuards(GqlAuthGuard)
+  @Mutation(() => Boolean)
   typing(
     @CurrentUser() user: { id: string },
     @Args('conversationId', { type: () => ID }) conversationId: string,

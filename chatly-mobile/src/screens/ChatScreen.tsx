@@ -15,7 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
+import { Swipeable } from 'react-native-gesture-handler';
+import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
 import { LongPressGestureHandler, State } from 'react-native-gesture-handler';
 import {
@@ -27,8 +31,11 @@ import {
   CheckCheck,
   Check,
   Image as ImageIcon,
+  Paperclip,
   ChevronLeft,
   RefreshCw,
+  Reply,
+  Trash2,
 } from 'lucide-react-native';
 import {
   MESSAGES_QUERY,
@@ -41,6 +48,7 @@ import {
   MESSAGE_REACTION_UPDATED_SUBSCRIPTION,
   MESSAGE_STATUS_UPDATED_SUBSCRIPTION,
   USER_TYPING_STATUS_SUBSCRIPTION,
+  DELETE_MESSAGE,
 } from '../graphql/messages.gql';
 import { START_CALL } from '../graphql/calls.gql';
 import { VoiceMessagePlayer } from '../components/VoiceMessagePlayer';
@@ -50,6 +58,9 @@ import { AmbientBackground } from '../components/AmbientBackground';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { useCall } from '../lib/CallContext';
 import { colors, radii, shadows, spacing } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
+import { AttachmentSheet, AttachmentAction } from '../components/AttachmentSheet';
+import { MessageContextMenu, MessageMenuAction } from '../components/MessageContextMenu';
 
 const QUICK_REACTIONS = [String.fromCodePoint(0x2764, 0xFE0F), String.fromCodePoint(0x1F602), String.fromCodePoint(0x1F44D), String.fromCodePoint(0x1F62E), String.fromCodePoint(0x1F622)];
 const TYPING_DEBOUNCE_MS = 2500;
@@ -96,9 +107,13 @@ export function ChatScreen({
 }: ChatScreenProps) {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
+  const { isDark } = useTheme();
   const [draft, setDraft] = useState('');
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [activeMessageId, setActiveMessageId] = useState(null);
+  const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
+  const [attachmentVisible, setAttachmentVisible] = useState(false);
+  const [contextMessage, setContextMessage] = useState<any | null>(null);
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [peerTyping, setPeerTyping] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
@@ -113,6 +128,7 @@ export function ChatScreen({
   const [setTyping] = useMutation(TYPING);
   const [markAsRead] = useMutation(MARK_AS_READ);
   const [uploadMessageMedia] = useMutation(UPLOAD_MESSAGE_MEDIA);
+  const [deleteMessage] = useMutation(DELETE_MESSAGE);
   const [startCall] = useMutation(START_CALL);
 
   useSubscription(MESSAGE_ADDED_SUBSCRIPTION, { variables: { conversationId }, onData: () => refetch() });
@@ -166,10 +182,13 @@ export function ChatScreen({
 
   const handleSend = useCallback(async () => {
     if (!draft.trim()) return;
-    await sendMessage({ variables: { input: { conversationId, content: draft, messageType: 'TEXT' } } });
+    await Haptics.selectionAsync();
+    const content = replyingTo ? `↪ ${replyingTo.content ?? 'Message'}\n${draft.trim()}` : draft.trim();
+    await sendMessage({ variables: { input: { conversationId, content, messageType: 'TEXT' } } });
     setDraft('');
+    setReplyingTo(null);
     setTyping({ variables: { conversationId, isTyping: false } });
-  }, [draft, conversationId, sendMessage, setTyping]);
+  }, [draft, replyingTo, conversationId, sendMessage, setTyping]);
 
   const handleVoiceSend = useCallback(async () => {
     const uri = await stopRecording();
@@ -204,6 +223,26 @@ export function ChatScreen({
     });
   }, [conversationId, sendMessage, uploadMessageMedia]);
 
+  const handleAttachment = useCallback(async (action: AttachmentAction, asset?: any) => {
+    setAttachmentVisible(false);
+    if (action === 'photos') return handlePickMedia();
+    if (action === 'camera') {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) return;
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 0.8 });
+      if (result.canceled || !result.assets?.length) return;
+      const picked = result.assets[0];
+      const isVideo = picked.type === 'video';
+      const { data: uploadData } = await uploadMessageMedia({ variables: { file: { uri: picked.uri, name: picked.fileName ?? `camera-${Date.now()}`, type: isVideo ? 'video/mp4' : 'image/jpeg' } } });
+      await sendMessage({ variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? picked.uri, messageType: isVideo ? 'VIDEO' : 'IMAGE' } } });
+      return;
+    }
+    if (action === 'document' && asset?.uri) {
+      const { data: uploadData } = await uploadMessageMedia({ variables: { file: { uri: asset.uri, name: asset.name ?? `file-${Date.now()}`, type: asset.mimeType ?? 'application/octet-stream' } } });
+      await sendMessage({ variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? asset.uri, content: asset.name, messageType: 'FILE' } } });
+    }
+  }, [conversationId, handlePickMedia, sendMessage, uploadMessageMedia]);
+
   const handleReact = useCallback(
     (messageId: string, emoji: string) => {
       toggleReaction({ variables: { messageId, emojiId: emoji } });
@@ -211,6 +250,15 @@ export function ChatScreen({
     },
     [toggleReaction],
   );
+
+  const handleMenuAction = useCallback((action: MessageMenuAction) => {
+    const message = contextMessage;
+    setContextMessage(null);
+    if (!message) return;
+    if (action === 'reply') setReplyingTo(message);
+    if (action === 'delete') deleteMessage({ variables: { messageId: message.id }, refetchQueries: [{ query: MESSAGES_QUERY, variables: { conversationId } }] });
+    if (action === 'react') handleReact(message.id, '❤️');
+  }, [contextMessage, deleteMessage, conversationId, handleReact]);
 
   const handleCall = useCallback(
     async (callType: 'AUDIO' | 'VIDEO') => {
@@ -276,28 +324,36 @@ export function ChatScreen({
             <Text style={styles.dayChip}>{formatDay(item.createdAt)}</Text>
           </View>
         )}
-        <LongPressGestureHandler
-          onHandlerStateChange={({ nativeEvent }) => {
-            if (nativeEvent.state === State.ACTIVE) setActiveMessageId(item.id);
-          }}
+        <Swipeable
+          overshootLeft={false}
+          renderLeftActions={() => <View style={styles.replyAction}><Reply size={18} color={colors.primary} /></View>}
+          onSwipeableOpen={() => { Haptics.selectionAsync(); setReplyingTo(item); }}
         >
-          <View style={[styles.messageRow, { alignItems: isMine ? 'flex-end' : 'flex-start' }]}>
-            <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
-              {renderMessageContent(item)}
-              <View style={styles.metaRow}>
-                <Text style={isMine ? styles.metaTextMine : styles.metaTextOther}>
-                  {formatTime(item.createdAt)}
-                </Text>
-                {isMine &&
-                  (item.isRead ? (
-                    <CheckCheck size={13} color={colors.accent} />
-                  ) : item.isDelivered ? (
-                    <Check size={13} color={colors.textMuted} />
-                  ) : (
-                    <Check size={13} color="rgba(100,116,139,0.4)" />
-                  ))}
+          <LongPressGestureHandler
+            onHandlerStateChange={({ nativeEvent }) => {
+              if (nativeEvent.state === State.ACTIVE) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setContextMessage(item);
+              }
+            }}
+          >
+            <View style={[styles.messageRow, { alignItems: isMine ? 'flex-end' : 'flex-start' }]}>
+            {isMine ? (
+              <LinearGradient colors={['#4A6CF7', '#34C1B0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.bubble, styles.bubbleMine]}>
+                {renderMessageContent(item)}
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaTextMine}>{formatTime(item.createdAt)}</Text>
+                  {item.isRead ? <CheckCheck size={13} color="#FFFFFF" /> : item.isDelivered ? <Check size={13} color="rgba(255,255,255,0.76)" /> : <Check size={13} color="rgba(255,255,255,0.48)" />}
+                </View>
+              </LinearGradient>
+            ) : (
+              <View style={[styles.bubble, styles.bubbleOther]}>
+                {renderMessageContent(item)}
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaTextOther}>{formatTime(item.createdAt)}</Text>
+                </View>
               </View>
-            </View>
+            )}
 
             {item.reactions?.length > 0 && (
               <View style={styles.reactionRow}>
@@ -307,17 +363,9 @@ export function ChatScreen({
               </View>
             )}
 
-            {activeMessageId === item.id && (
-              <View style={styles.quickReactions}>
-                {QUICK_REACTIONS.map((emoji) => (
-                  <Pressable key={emoji} onPress={() => handleReact(item.id, emoji)}>
-                    <Text style={styles.quickReactionEmoji}>{emoji}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-        </LongPressGestureHandler>
+            </View>
+          </LongPressGestureHandler>
+        </Swipeable>
       </View>
     );
   };
@@ -330,7 +378,7 @@ export function ChatScreen({
     >
       <AmbientBackground />
 
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing.sm) } ]}>
+      <View style={[styles.header, isDark && styles.headerDark, { paddingTop: Math.max(insets.top, spacing.sm) } ]}>
         <Pressable style={styles.headerIconBtn} onPress={() => navigation?.goBack()}>
           <ChevronLeft size={22} color={colors.textPrimary} />
         </Pressable>
@@ -357,6 +405,7 @@ export function ChatScreen({
         onContentSizeChange={() => {
           if (messages.length) listRef.current?.scrollToEnd({ animated: false });
         }}
+        ListFooterComponent={peerTyping ? <View style={styles.typingBubble}><View style={styles.dot} /><View style={styles.dot} /><View style={styles.dot} /><Text style={styles.typingText}>Typing…</Text></View> : null}
         ListEmptyComponent={
           loading ? (
             <View style={styles.stateBox}>
@@ -380,8 +429,8 @@ export function ChatScreen({
 
       <View style={[styles.composerWrap, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <View style={[styles.composer, { maxWidth: screenWidth - spacing.md * 2 }]}>
-          <Pressable onPress={handlePickMedia} style={styles.composerIconBtn}>
-            <ImageIcon size={21} color={colors.textSecondary} />
+          <Pressable onPress={() => setAttachmentVisible(true)} style={styles.composerIconBtn}>
+            <Paperclip size={21} color={colors.textSecondary} />
           </Pressable>
           <Pressable onPress={() => setPickerVisible(true)} style={styles.composerIconBtn}>
             <Smile size={22} color={colors.textSecondary} />
@@ -409,6 +458,11 @@ export function ChatScreen({
           )}
         </View>
       </View>
+
+      {replyingTo && <View style={styles.replyBar}><Reply size={15} color={colors.primary} /><Text style={styles.replyText} numberOfLines={1}>Replying to {replyingTo.sender?.name ?? 'message'}: {replyingTo.content ?? 'attachment'}</Text><Pressable onPress={() => setReplyingTo(null)}><Text style={styles.replyClose}>×</Text></Pressable></View>}
+
+      <AttachmentSheet visible={attachmentVisible} onClose={() => setAttachmentVisible(false)} onAction={handleAttachment} />
+      <MessageContextMenu visible={!!contextMessage} message={contextMessage} mine={contextMessage?.sender?.id === currentUserId} onClose={() => setContextMessage(null)} onAction={handleMenuAction} />
 
       <EmojiPicker
         visible={pickerVisible}
@@ -440,6 +494,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderSoft,
   },
+  headerDark: { backgroundColor: 'rgba(28,28,30,0.94)' },
   headerText: { flex: 1 },
   headerName: { color: colors.textPrimary, fontWeight: '800', fontSize: 16 },
   headerStatus: { color: colors.textSecondary, fontSize: 12 },
@@ -473,13 +528,12 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
   },
   bubbleMine: {
-    backgroundColor: colors.lavender,
     borderBottomRightRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(15,118,110,0.14)',
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   bubbleOther: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceAlt,
     borderBottomLeftRadius: 5,
     borderWidth: 1,
     borderColor: colors.borderSoft,
@@ -487,7 +541,7 @@ const styles = StyleSheet.create({
   },
   bubbleText: { color: colors.textPrimary, fontSize: 15, lineHeight: 20 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, alignSelf: 'flex-end' },
-  metaTextMine: { color: 'rgba(15,118,110,0.72)', fontSize: 11 },
+  metaTextMine: { color: 'rgba(255,255,255,0.76)', fontSize: 11 },
   metaTextOther: { color: colors.textMuted, fontSize: 11 },
   reactionRow: { flexDirection: 'row', gap: 2, marginTop: 2 },
   reactionEmoji: { fontSize: 14 },
@@ -502,6 +556,13 @@ const styles = StyleSheet.create({
     ...shadows.md,
   },
   quickReactionEmoji: { fontSize: 20 },
+  replyAction: { width: 58, alignItems: 'center', justifyContent: 'center' },
+  typingBubble: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.surfaceAlt, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 9, marginLeft: spacing.lg, marginTop: spacing.sm },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textMuted },
+  typingText: { color: colors.textMuted, fontSize: 12, marginLeft: 4 },
+  replyBar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, backgroundColor: colors.surfaceAlt, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  replyText: { flex: 1, color: colors.textSecondary, fontSize: 12 },
+  replyClose: { color: colors.textSecondary, fontSize: 22 },
   mediaImage: { width: '100%', maxWidth: 220, height: 220, borderRadius: radii.md, marginBottom: 4 },
   mediaVideo: { width: '100%', maxWidth: 220, height: 260, borderRadius: radii.md, marginBottom: 4, backgroundColor: '#102A2B' },
   composerWrap: {
