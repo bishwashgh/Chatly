@@ -27,5 +27,5 @@ COPY --from=build /app/dist ./dist
 
 EXPOSE 4000
 
-# db push instead of migrate deploy: repo has no migrations folder yet
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main.js"]
+# Run pending migrations, then start the API
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

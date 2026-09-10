@@ -19,7 +19,8 @@ services:
     rootDir: chatly_backend
     plan: free
     buildCommand: npm ci && npx prisma generate && npm run build
-    startCommand: npx prisma db push --skip-generate && node dist/main.js
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: node dist/main.js
     healthCheckPath: /graphql
     envVars:
       - key: NODE_ENV
@@ -40,6 +41,9 @@ services:
         generateValue: true
     # Real-time (subscriptions over WebSocket) needs websockets enabled:
     # Dashboard → chatly-api → Settings → WebSockets → ON
+    # Schema is applied via preDeployCommand (prisma migrate deploy) on every deploy.
+    # The initial migration lives in prisma/migrations/001_initial/ —
+    # git add it before the first deploy so Render can run it.
 
   # ---------- PostgreSQL ----------
   - type: pserv

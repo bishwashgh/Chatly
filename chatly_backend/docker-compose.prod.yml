@@ -48,11 +48,14 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/chatly?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # Migration-based deploy: prisma migrate deploy runs before node starts
     # secrets are injected from .env (JWT, Google, LiveKit, Cloudinary)
     env_file:
       - .env
     ports:
       - "4000:4000"
+    # Run pending migrations before starting (same as Render preDeployCommand)
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
 
 volumes:
   chatly_postgres_data:

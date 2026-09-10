@@ -1,0 +1,7 @@
+{
+  "id": "001_initial",
+  "migrationType": "migration",
+  "name": "001_initial",
+  "resolved": true,
+  "sql": "migration.sql"
+}

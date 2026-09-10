@@ -22,6 +22,11 @@ Part 1 = backend in the cloud. Part 2 = Google OAuth (needed by both). Part 3 = 
    - Storage: **16 GB**
 3. Launch and copy the **Public IPv4 address** → call it `$EC2_IP` below.
 
+> The backend now uses Prisma migrations (`prisma migrate deploy`), not `db push`.
+> The initial migration is committed in `chatly_backend/prisma/migrations/001_initial/`.
+> When you change `schema.prisma`, add a new migration (locally via `prisma migrate dev`
+> or manually) and commit it before pushing.
+
 ### 1.2 Upload the backend
 
 From your **PC** (project root):
@@ -30,6 +35,7 @@ From your **PC** (project root):
 cd chatly-backend
 docker build -t chatly-api:smoke .        # optional but recommended: catches Dockerfile errors before upload
 tar czf backend.tgz --exclude node_modules --exclude dist .
+# Make sure the migrations folder is included — the initial one is committed already.
 scp -i chatly-lab.pem backend.tgz ec2-user@$EC2_IP:~
 ```
 

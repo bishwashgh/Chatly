@@ -32,7 +32,8 @@ You just point it at the deployed API (see bottom).
 `chatly-api` commands:
 
 - Build: `npm ci && npx prisma generate && npm run build`
-- Start: `npx prisma db push --skip-generate && node dist/src/main.js`
+- Pre-deploy: `npx prisma migrate deploy` (runs pending migrations against Render Postgres)
+- Start: `node dist/src/main.js`
 - Health check path: `/graphql`
 
 Environment variables: `NODE_ENV=production`, plus copy the
@@ -46,10 +47,12 @@ and the **Internal Connection String** from the Key Value service into
   Dashboard → `chatly-api` → Settings → **WebSockets → ON**.
 - **CORS**: `main.ts` currently allows `origin: '*'`. Fine to start; tighten it
   later to your own origins.
-- **Schema sync**: the repo has no `prisma/migrations` folder, so the start
-  command uses `prisma db push`. It applies the schema on every deploy.
-  If you later adopt migrations, switch to `npx prisma migrate deploy`
-  (e.g. as a Render **Pre-Deploy Command**).
+- **Schema sync**: the repo now ships an initial migration in
+  `prisma/migrations/001_initial/`. Render runs it automatically via the
+  **Pre-Deploy Command** (`npx prisma migrate deploy`) on every deploy.
+  When you change `schema.prisma`, generate a new migration locally with
+  `npx prisma migrate dev` (or write it manually), commit the new folder
+  under `prisma/migrations/`, and Render will apply it on the next deploy.
 
 ## 4. Point the mobile app at Render
 
@@ -66,5 +69,5 @@ The mobile app reads env vars at build time (Expo), not runtime:
 - API sleeps after ~15 min idle → first request is slow; WebSocket
   subscriptions drop while asleep.
 - Free Postgres expires after 30 days — upgrade or back up before then.
-- `prisma db push` runs on every boot; keep an eye on deploys that change the
-  schema.
+- `prisma migrate deploy` runs on every deploy; it only applies pending
+  migrations, so repeated deploys are safe and idempotent.
