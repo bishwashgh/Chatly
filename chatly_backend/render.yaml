@@ -19,8 +19,7 @@ services:
     rootDir: chatly_backend
     plan: free
     buildCommand: npm ci && npx prisma generate && npm run build
-    preDeployCommand: npx prisma migrate deploy
-    startCommand: node dist/main.js
+    startCommand: sh prisma/migrations/bootstrap.sh && node dist/main.js
     healthCheckPath: /graphql
     envVars:
       - key: NODE_ENV
@@ -39,11 +38,21 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+      # Checksum of prisma/migrations/001_initial/migration.sql (SHA-256).
+      # Used by bootstrap.sh to mark the initial migration as applied
+      # on a database that was previously created by `prisma db push`.
+      - key: INITIAL_MIGRATION_CHECKSUM
+        value: dc85577f21e1c75200e5b90cc8e745dad994a42bad42e79b072c83599d41400a
     # Real-time (subscriptions over WebSocket) needs websockets enabled:
     # Dashboard → chatly-api → Settings → WebSockets → ON
-    # Schema is applied via preDeployCommand (prisma migrate deploy) on every deploy.
-    # The initial migration lives in prisma/migrations/001_initial/ —
-    # git add it before the first deploy so Render can run it.
+    # Schema is applied via the startup script (prisma/migrations/bootstrap.sh)
+    # which runs on every deploy. The first deploy creates the prisma_migrations
+    # tracking table and marks the 001_initial migration as applied (safe —
+    # no data is dropped). After that, only `prisma migrate deploy` runs,
+    # applying new migrations as you add them.
+    #
+    # The INITIAL_MIGRATION_CHECKSUM env var is the SHA-256 of
+    # prisma/migrations/001_initial/migration.sql — used to mark the baseline.
 
   # ---------- PostgreSQL ----------
   - type: pserv

@@ -47,9 +47,21 @@ and the **Internal Connection String** from the Key Value service into
   Dashboard → `chatly-api` → Settings → **WebSockets → ON**.
 - **CORS**: `main.ts` currently allows `origin: '*'`. Fine to start; tighten it
   later to your own origins.
-- **Schema sync**: the repo now ships an initial migration in
-  `prisma/migrations/001_initial/`. Render runs it automatically via the
-  **Pre-Deploy Command** (`npx prisma migrate deploy`) on every deploy.
+- **Schema sync**: the repo ships an initial migration in
+  `prisma/migrations/001_initial/`. Because the Render Postgres may already
+  have tables (created by a previous `db push` deploy) but no
+  `prisma_migrations` tracking table, the startup runs
+  `prisma/migrations/bootstrap.sh` first. This script:
+
+  1. Creates the `prisma_migrations` table if it doesn't exist.
+  2. Inserts a row marking `001_initial` as already applied (using the
+     SHA-256 checksum of the migration SQL).
+  3. Runs `npx prisma migrate deploy` to apply any **new** migrations.
+
+  This means the first deploy with this setup bootstraps the tracking
+  table safely — no data is dropped. After that, every deploy just runs
+  `migrate deploy` normally.
+
   When you change `schema.prisma`, generate a new migration locally with
   `npx prisma migrate dev` (or write it manually), commit the new folder
   under `prisma/migrations/`, and Render will apply it on the next deploy.
@@ -69,5 +81,7 @@ The mobile app reads env vars at build time (Expo), not runtime:
 - API sleeps after ~15 min idle → first request is slow; WebSocket
   subscriptions drop while asleep.
 - Free Postgres expires after 30 days — upgrade or back up before then.
-- `prisma migrate deploy` runs on every deploy; it only applies pending
-  migrations, so repeated deploys are safe and idempotent.
+- The startup runs `prisma/migrations/bootstrap.sh` on every deploy.
+  On the first deploy it creates the `prisma_migrations` table and marks
+  the initial migration as applied (safe — no data dropped). On subsequent
+  deploys it's a no-op and only `prisma migrate deploy` runs.

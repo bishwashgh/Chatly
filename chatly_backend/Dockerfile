@@ -13,7 +13,7 @@ RUN npm run build
 
 # ---- runtime stage ----
 FROM node:20-alpine
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl postgresql-client
 WORKDIR /app
 ENV NODE_ENV=production
 
@@ -24,8 +24,10 @@ COPY prisma ./prisma
 RUN npx prisma generate
 
 COPY --from=build /app/dist ./dist
+COPY prisma/migrations/bootstrap.sh ./prisma/migrations/bootstrap.sh
+RUN chmod +x ./prisma/migrations/bootstrap.sh
 
 EXPOSE 4000
 
-# Run pending migrations, then start the API
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+# Bootstrap prisma_migrations table (if missing) then apply migrations
+CMD ["sh", "-c", "sh prisma/migrations/bootstrap.sh && node dist/main.js"]
