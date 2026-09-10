@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Chatly",
+    "slug": "chatly",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#F7F6FB",
+    "icon": "./assets/icon.png",
+    "ios": {
+      "supportsTablet": false,
+      "icon": "./assets/icon.png",
+      "bundleIdentifier": "com.chatly.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Chatly uses the camera for video calls and sending photos.",
+        "NSMicrophoneUsageDescription": "Chatly uses the microphone for voice notes and audio calls.",
+        "NSPhotoLibraryUsageDescription": "Chatly accesses your photo library so you can send photos and videos."
+      }
+    },
+    "android": {
+      "package": "com.chatly.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#F7F6FB"
+      }
+    },
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F6FB"
+    },
+    "plugins": [
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.YOUR_GOOGLE_CLIENT_ID"
+        }
+      ],
+      "./plugins/withLiveKitPermissions",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ]
+    ]
+  }
+}

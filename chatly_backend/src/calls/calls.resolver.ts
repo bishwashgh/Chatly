@@ -1,0 +1,41 @@
+import { Resolver, Mutation, Subscription, Args, ID } from '@nestjs/graphql';
+import { UseGuards, Inject } from '@nestjs/common';
+import { RedisPubSub } from 'graphql-redis-subscriptions';
+import { CallsService, INCOMING_CALL_SIGNAL } from './calls.service';
+import { CallSession } from './models/call-session.model';
+import { CallOffer } from './models/call-offer.model';
+import { CallType } from './models/call-type.enum';
+import { GqlAuthGuard } from '../common/guards/gql-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { PUB_SUB } from '../common/pubsub.provider';
+
+@Resolver()
+export class CallsResolver {
+  constructor(
+    private callsService: CallsService,
+    @Inject(PUB_SUB) private pubSub: RedisPubSub,
+  ) {}
+
+  @UseGuards(GqlAuthGuard)
+  @Mutation(() => CallSession)
+  startCall(
+    @CurrentUser() user: { id: string },
+    @Args('recipientId', { type: () => ID }) recipientId: string,
+    @Args('callType', { type: () => CallType }) callType: CallType,
+  ) {
+    return this.callsService.startCall(user.id, recipientId, callType);
+  }
+
+  @UseGuards(GqlAuthGuard)
+  @Mutation(() => CallSession)
+  endCall(@CurrentUser() user: { id: string }, @Args('sessionId', { type: () => ID }) sessionId: string) {
+    return this.callsService.endCall(user.id, sessionId);
+  }
+
+  @Subscription(() => CallOffer, {
+    filter: (payload, variables) => payload.userId === variables.userId,
+  })
+  incomingCallSignal(@Args('userId', { type: () => ID }) userId: string) {
+    return this.pubSub.asyncIterator(INCOMING_CALL_SIGNAL);
+  }
+}

@@ -1,0 +1,59 @@
+# Production-ish single-VM stack for AWS Academy Learner Lab (EC2)
+# Runs Postgres + Redis + the Chatly API in one docker compose command.
+#
+# Usage on the EC2 box:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Requires a .env file next to this file (copy of .env.example, filled in).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: chatly
+    volumes:
+      - chatly_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - chatly_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # inside the compose network, services talk by name:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/chatly?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    # secrets are injected from .env (JWT, Google, LiveKit, Cloudinary)
+    env_file:
+      - .env
+    ports:
+      - "4000:4000"
+
+volumes:
+  chatly_postgres_data:
+  chatly_redis_data:

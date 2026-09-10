@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ACCEPTED
+  DECLINED
+  ENDED
+  MISSED
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  username       String   @unique
+  name           String
+  bio            String?
+  avatarUrl      String?
+  googleId       String?  @unique
+  isOnline       Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  lastSeen       DateTime @default(now())
+  refreshToken   String?
+  createdAt      DateTime @default(now())
+
+  participants          ConversationParticipant[]
+  messages              Message[]
+  reactions             Reaction[]
+  customEmojis          CustomEmoji[]
+  callsMade             CallSession[] @relation("CallerSessions")
+  callsReceived         CallSession[] @relation("RecipientSessions")
+  friendshipsRequested  Friendship[] @relation("FriendshipRequester")
+  friendshipsReceived   Friendship[] @relation("FriendshipAddressee")
+  blocks                BlockedUser[] @relation("UserBlocks")
+  blockedBy             BlockedUser[] @relation("UserBlockedBy")
+}
+
+model Conversation {
+  id           String   @id @default(uuid())
+  isGroup      Boolean  @default(false)
+  title        String?
+  createdAt    DateTime @default(now())
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String?
+  mediaUrl       String?
+  messageType    MessageType  @default(TEXT)
+  isRead         Boolean      @default(false)
+  isDelivered    Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  reactions      Reaction[]
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+}
+
+model CustomEmoji {
+  id         String   @id @default(uuid())
+  name       String
+  imageUrl   String
+  category   String   @default("custom")
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+
+  uploader   User?    @relation(fields: [uploadedBy], references: [id])
+}
+
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String
+  addresseeId String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester   User @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+}
+
+model BlockedUser {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker   User @relation("UserBlocks", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User @relation("UserBlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+model CallSession {
+  id           String     @id @default(uuid())
+  callerId     String
+  recipientId  String
+  roomToken    String
+  channelName  String
+  callType     CallType
+  status       CallStatus @default(RINGING)
+  startedAt    DateTime   @default(now())
+  endedAt      DateTime?
+
+  caller       User       @relation("CallerSessions", fields: [callerId], references: [id], onDelete: Cascade)
+  recipient    User       @relation("RecipientSessions", fields: [recipientId], references: [id], onDelete: Cascade)
+}
