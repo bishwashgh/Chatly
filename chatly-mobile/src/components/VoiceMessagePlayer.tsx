@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Pressable, Text, StyleSheet } from 'react-native';
+import { View, Pressable, Text, StyleSheet, Alert } from 'react-native';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { Play, Pause } from 'lucide-react-native';
 import { colors, radii, shadows } from '../lib/theme';
@@ -23,7 +23,7 @@ export function VoiceMessagePlayer({ uri, durationMs = 0 }: VoiceMessagePlayerPr
 
   useEffect(() => {
     return () => {
-      soundRef.current?.unloadAsync();
+      soundRef.current?.unloadAsync().catch(() => {});
     };
   }, []);
 
@@ -41,16 +41,36 @@ export function VoiceMessagePlayer({ uri, durationMs = 0 }: VoiceMessagePlayerPr
   };
 
   const togglePlayback = async () => {
-    if (!soundRef.current) {
-      const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true }, onStatusUpdate);
-      soundRef.current = sound;
-      return;
-    }
-    const status = await soundRef.current.getStatusAsync();
-    if (status.isLoaded && status.isPlaying) {
-      await soundRef.current.pauseAsync();
-    } else {
-      await soundRef.current.playAsync();
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
+      if (!soundRef.current) {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri },
+          { shouldPlay: true, progressUpdateIntervalMillis: 200 },
+          onStatusUpdate,
+        );
+        soundRef.current = sound;
+        return;
+      }
+
+      const status = await soundRef.current.getStatusAsync();
+      if (status.isLoaded && status.isPlaying) {
+        await soundRef.current.pauseAsync();
+      } else if (status.isLoaded) {
+        await soundRef.current.playAsync();
+      }
+    } catch (error) {
+      console.error('Voice playback failed:', error);
+      Alert.alert('Voice message unavailable', 'This voice message could not be played. Please try downloading it again.');
+      soundRef.current?.unloadAsync().catch(() => {});
+      soundRef.current = null;
+      setIsPlaying(false);
     }
   };
 
@@ -59,7 +79,7 @@ export function VoiceMessagePlayer({ uri, durationMs = 0 }: VoiceMessagePlayerPr
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={togglePlayback} style={styles.playBtn}>
+      <Pressable onPress={togglePlayback} style={styles.playBtn} accessibilityLabel={isPlaying ? 'Pause voice message' : 'Play voice message'}>
         {isPlaying ? <Pause size={15} color="#fff" /> : <Play size={15} color="#fff" />}
       </Pressable>
       <View style={styles.waveform}>

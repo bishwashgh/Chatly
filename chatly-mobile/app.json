@@ -14,7 +14,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Chatly uses the camera for video calls and sending photos.",
         "NSMicrophoneUsageDescription": "Chatly uses the microphone for voice notes and audio calls.",
-        "NSPhotoLibraryUsageDescription": "Chatly accesses your photo library so you can send photos and videos."
+        "NSPhotoLibraryUsageDescription": "Chatly accesses your photo library so you can send photos and videos.",
+        "NSPhotoLibraryAddUsageDescription": "Chatly saves photos downloaded from conversations to your photo library."
       }
     },
     "android": {
@@ -39,6 +40,7 @@
       "./plugins/withLiveKitPermissions",
       "expo-camera",
       "expo-document-picker",
+      "expo-media-library",
       [
         "expo-build-properties",
         {

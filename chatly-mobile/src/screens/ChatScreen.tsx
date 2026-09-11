@@ -5,6 +5,7 @@ import {
   TextInput,
   Pressable,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Modal,
   StyleSheet,
@@ -18,6 +19,7 @@ import { FlashList } from '@shopify/flash-list';
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
 import { Swipeable } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
@@ -43,6 +45,9 @@ import {
   Shield,
   Download,
   FileText,
+  X,
+  Pause,
+  Play,
 } from 'lucide-react-native';
 import {
   MESSAGES_QUERY,
@@ -133,10 +138,20 @@ export function ChatScreen({
   const [peerTyping, setPeerTyping] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
+  const [voiceSending, setVoiceSending] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listRef = useRef<FlashList<any>>(null);
   const listMeasuredRef = useRef(false);
-  const { isRecording, startRecording, stopRecording } = useVoiceRecorder();
+  const {
+    isRecording,
+    isPaused,
+    durationMillis,
+    startRecording,
+    pauseRecording,
+    resumeRecording,
+    stopRecording,
+    cancelRecording,
+  } = useVoiceRecorder();
   const { presentCall } = useCall();
 
   useEffect(() => {
@@ -238,6 +253,8 @@ export function ChatScreen({
   }, [draft, replyingTo, conversationId, sendMessage, setTyping, refetch]);
 
   const handleVoiceSend = useCallback(async () => {
+    if (voiceSending) return;
+    setVoiceSending(true);
     try {
       const uri = await stopRecording();
       if (!uri) return;
@@ -257,8 +274,22 @@ export function ChatScreen({
     } catch (e) {
       console.error('Voice send failed:', e);
       Alert.alert('Voice message failed', 'Could not send voice note. Please try again.');
+    } finally {
+      setVoiceSending(false);
     }
-  }, [stopRecording, conversationId, sendMessage, uploadMessageMedia, refetch]);
+  }, [voiceSending, stopRecording, conversationId, sendMessage, uploadMessageMedia, refetch]);
+
+  const handleStartRecording = useCallback(async () => {
+    Keyboard.dismiss();
+    await startRecording();
+  }, [startRecording]);
+
+  const formatRecordingTime = (duration: number) => {
+    const totalSeconds = Math.floor(duration / 1000);
+    const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  };
 
   const handlePickMedia = useCallback(async () => {
     try {
@@ -404,18 +435,35 @@ export function ChatScreen({
     [peerId, calling, peerName, peerAvatarUrl, startCall, presentCall],
   );
 
-  const downloadAttachment = useCallback(async (url: string, fileName?: string) => {
+  const downloadAttachment = useCallback(async (url: string, fileName?: string, isPhoto = false) => {
     try {
       const baseDirectory = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
       if (!baseDirectory) throw new Error('Device storage is unavailable');
-      const safeName = (fileName || `chatly-${Date.now()}`).replace(/[^a-zA-Z0-9._-]/g, '_');
-      const extension = safeName.includes('.') ? '' : '.bin';
-      const localUri = `${baseDirectory}${safeName}${extension}`;
+
+      const requestedName = (fileName || (isPhoto ? 'chatly-photo.jpg' : 'chatly-file.bin'))
+        .trim()
+        .replace(/[^a-zA-Z0-9._-]/g, '_');
+      const extensionMatch = requestedName.match(/\.[a-zA-Z0-9]{2,8}$/);
+      const extension = extensionMatch?.[0] ?? (isPhoto ? '.jpg' : '.bin');
+      const stem = requestedName.replace(/\.[a-zA-Z0-9]{2,8}$/, '') || (isPhoto ? 'chatly-photo' : 'chatly-file');
+      const uniqueName = `${stem}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${extension}`;
+      const localUri = `${baseDirectory}${uniqueName}`;
       const result = await FileSystem.downloadAsync(url, localUri);
       if (result.status !== 200) throw new Error(`Download failed (${result.status})`);
 
+      if (isPhoto) {
+        const permission = await MediaLibrary.requestPermissionsAsync();
+        if (!permission.granted) {
+          throw new Error('Photo library permission is required to save this photo');
+        }
+        await MediaLibrary.createAssetAsync(result.uri);
+        await FileSystem.deleteAsync(result.uri, { idempotent: true });
+        Alert.alert('Photo saved', 'The photo was saved to your device gallery.');
+        return;
+      }
+
       // Android rejects private file:// URIs passed to another app. Convert
-      // the saved file to a shareable content:// URI first.
+      // the saved file to a shareable content:// URI before opening it.
       const openUri = Platform.OS === 'android'
         ? await FileSystem.getContentUriAsync(result.uri)
         : result.uri;
@@ -423,16 +471,17 @@ export function ChatScreen({
       if (canOpen) {
         await Linking.openURL(openUri);
       } else {
-        Alert.alert('Downloaded', `${safeName} was saved to Chatly storage.`);
+        Alert.alert('Downloaded', `${uniqueName} was saved to Chatly storage.`);
       }
     } catch (error) {
       console.error('Attachment download failed:', error);
-      Alert.alert('Download failed', 'The attachment could not be downloaded. Please try again.');
+      const message = error instanceof Error ? error.message : 'The attachment could not be downloaded.';
+      Alert.alert('Download failed', message);
     }
   }, []);
 
   const downloadImage = useCallback(async (url: string) => {
-    await downloadAttachment(url, `chatly-photo-${Date.now()}.jpg`);
+    await downloadAttachment(url, 'chatly-photo.jpg', true);
   }, [downloadAttachment]);
 
   const isImageAttachment = (item: any) =>
@@ -487,7 +536,7 @@ export function ChatScreen({
         );
       case 'FILE':
         return item.mediaUrl ? (
-          <Pressable style={styles.fileAttachment} onPress={() => downloadAttachment(item.mediaUrl, item.content)}>
+          <Pressable style={styles.fileAttachment} onPress={() => downloadAttachment(item.mediaUrl, item.content, false)}>
             <View style={styles.fileIcon}><FileText size={20} color={colors.primary} /></View>
             <View style={styles.fileTextWrap}>
               <Text style={styles.fileName} numberOfLines={2}>{item.content || 'Shared file'}</Text>
@@ -601,7 +650,7 @@ export function ChatScreen({
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="padding"
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <AmbientBackground />
@@ -696,49 +745,81 @@ export function ChatScreen({
       />
 
       <View style={[styles.composerWrap, isDark && styles.composerWrapDark, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
-        <View style={styles.composerRow}>
-          <Pressable
-            onPress={() => setAttachmentVisible(true)}
-            style={[styles.composerCircleBtn, isDark && styles.composerCircleBtnDark]}
-          >
-            <Plus size={20} color={isDark ? '#F1F0F5' : '#3D4A3C'} strokeWidth={2.4} />
-          </Pressable>
-
-          <View style={[styles.inputPill, isDark && styles.inputPillDark]}>
-            <TextInput
-              style={[styles.input, isDark && styles.inputDark]}
-              placeholder="Message..."
-              placeholderTextColor="#6D7B6B"
-              value={draft}
-              onChangeText={handleDraftChange}
-              multiline
-            />
-            <Pressable onPress={() => setPickerVisible(true)} hitSlop={6}>
-              <Smile size={20} color="#6D7B6B" />
+        {replyingTo && (
+          <View style={styles.replyBar}>
+            <Reply size={15} color={colors.primary} />
+            <Text style={styles.replyText} numberOfLines={1}>
+              Replying to {replyingTo.sender?.name ?? 'message'}: {replyingTo.content ?? 'attachment'}
+            </Text>
+            <Pressable onPress={() => setReplyingTo(null)} hitSlop={8}>
+              <Text style={styles.replyClose}>×</Text>
             </Pressable>
           </View>
+        )}
 
-          {draft.trim() ? (
-            <Pressable style={styles.sendCircleBtn} onPress={handleSend}>
-              <Send size={17} color="#FFFFFF" />
+        {isRecording ? (
+          <View style={styles.recordingBar}>
+            <Pressable style={styles.recordingCancelBtn} onPress={cancelRecording} disabled={voiceSending} accessibilityLabel="Cancel voice recording">
+              <X size={19} color={colors.danger} />
             </Pressable>
-          ) : (
+            <View style={styles.recordingStatus}>
+              <View style={styles.recordingDot} />
+              <Text style={styles.recordingTime}>{formatRecordingTime(durationMillis)}</Text>
+              <Text style={styles.recordingLabel}>{isPaused ? 'Paused' : 'Recording'}</Text>
+            </View>
             <Pressable
-              style={[
-                styles.composerCircleBtn,
-                isDark && styles.composerCircleBtnDark,
-                isRecording && styles.recordingBtn,
-              ]}
-              onPressIn={startRecording}
-              onPressOut={handleVoiceSend}
+              style={styles.recordingPauseBtn}
+              onPress={isPaused ? resumeRecording : pauseRecording}
+              disabled={voiceSending}
+              accessibilityLabel={isPaused ? 'Resume voice recording' : 'Pause voice recording'}
             >
-              <Mic size={19} color={isRecording ? '#fff' : (isDark ? '#F1F0F5' : '#3D4A3C')} />
+              {isPaused ? <Play size={17} color="#fff" /> : <Pause size={17} color="#fff" />}
             </Pressable>
-          )}
-        </View>
-      </View>
+            <Pressable style={styles.recordingSendBtn} onPress={handleVoiceSend} disabled={voiceSending} accessibilityLabel="Send voice recording">
+              {voiceSending ? <ActivityIndicator size="small" color="#fff" /> : <Send size={17} color="#fff" />}
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.composerRow}>
+            <Pressable
+              onPress={() => setAttachmentVisible(true)}
+              style={[styles.composerCircleBtn, isDark && styles.composerCircleBtnDark]}
+              accessibilityLabel="Add attachment"
+            >
+              <Plus size={20} color={isDark ? '#F1F0F5' : '#3D4A3C'} strokeWidth={2.4} />
+            </Pressable>
 
-      {replyingTo && <View style={styles.replyBar}><Reply size={15} color={colors.primary} /><Text style={styles.replyText} numberOfLines={1}>Replying to {replyingTo.sender?.name ?? 'message'}: {replyingTo.content ?? 'attachment'}</Text><Pressable onPress={() => setReplyingTo(null)}><Text style={styles.replyClose}>×</Text></Pressable></View>}
+            <View style={[styles.inputPill, isDark && styles.inputPillDark]}>
+              <TextInput
+                style={[styles.input, isDark && styles.inputDark]}
+                placeholder="Message..."
+                placeholderTextColor="#6D7B6B"
+                value={draft}
+                onChangeText={handleDraftChange}
+                multiline
+              />
+              <Pressable onPress={() => setPickerVisible(true)} hitSlop={6}>
+                <Smile size={20} color="#6D7B6B" />
+              </Pressable>
+            </View>
+
+            {draft.trim() ? (
+              <Pressable style={styles.sendCircleBtn} onPress={handleSend} accessibilityLabel="Send message">
+                <Send size={17} color="#FFFFFF" />
+              </Pressable>
+            ) : (
+              <Pressable
+                style={[styles.composerCircleBtn, isDark && styles.composerCircleBtnDark]}
+                onPress={handleStartRecording}
+                disabled={voiceSending}
+                accessibilityLabel="Record voice message"
+              >
+                <Mic size={19} color={isDark ? '#F1F0F5' : '#3D4A3C'} />
+              </Pressable>
+            )}
+          </View>
+        )}
+      </View>
 
       <AttachmentSheet visible={attachmentVisible} onClose={() => setAttachmentVisible(false)} onAction={handleAttachment} />
       <MessageContextMenu
@@ -1030,6 +1111,60 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   recordingBtn: { backgroundColor: colors.danger },
+  recordingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 52,
+    paddingHorizontal: 4,
+  },
+  recordingCancelBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(220, 53, 69, 0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordingStatus: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  recordingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.danger,
+  },
+  recordingTime: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  recordingLabel: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  recordingPauseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#6D7B6B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordingSendBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.sm,
+  },
   stateBox: { alignItems: 'center', paddingHorizontal: spacing.xl, marginTop: 80, gap: spacing.sm },
   stateTitle: { color: '#1A1B1F', fontSize: 16, fontWeight: '700', textAlign: 'center' },
   stateText: { color: '#6D7B6B', fontSize: 13, textAlign: 'center' },

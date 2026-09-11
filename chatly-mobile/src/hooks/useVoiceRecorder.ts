@@ -3,90 +3,119 @@ import { Audio } from 'expo-av';
 
 export function useVoiceRecorder() {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [durationMillis, setDurationMillis] = useState(0);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const isPreparingRef = useRef(false);
-  const shouldStopRef = useRef(false);
+  const cancelRequestedRef = useRef(false);
 
-  // Clean up on unmount
+  const resetState = useCallback(() => {
+    setIsRecording(false);
+    setIsPaused(false);
+    setDurationMillis(0);
+  }, []);
+
+  const restoreAudioMode = useCallback(async () => {
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+    } catch {
+      // Audio mode cleanup should not block the next recording.
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
-      if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync().catch(() => {});
-        recordingRef.current = null;
-      }
+      const recording = recordingRef.current;
+      recordingRef.current = null;
+      if (recording) recording.stopAndUnloadAsync().catch(() => {});
     };
   }, []);
 
   const startRecording = useCallback(async () => {
-    // If already preparing or recording, clean up existing first
-    if (isPreparingRef.current || recordingRef.current) {
-      try {
-        if (recordingRef.current) {
-          await recordingRef.current.stopAndUnloadAsync();
-        }
-      } catch {}
-      recordingRef.current = null;
-    }
+    if (isPreparingRef.current || recordingRef.current) return false;
 
     isPreparingRef.current = true;
-    shouldStopRef.current = false;
+    cancelRequestedRef.current = false;
+    setDurationMillis(0);
 
     try {
       const { granted } = await Audio.requestPermissionsAsync();
-      if (!granted || shouldStopRef.current) {
-        isPreparingRef.current = false;
-        return;
-      }
+      if (!granted || cancelRequestedRef.current) return false;
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
 
-      if (shouldStopRef.current) {
-        isPreparingRef.current = false;
-        return;
-      }
+      if (cancelRequestedRef.current) return false;
 
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        (status) => {
+          setDurationMillis(status.durationMillis ?? 0);
+        },
+        200,
       );
+      recording.setProgressUpdateInterval(200);
 
-      // If user released the button while createAsync was initializing:
-      if (shouldStopRef.current) {
-        try {
-          await recording.stopAndUnloadAsync();
-        } catch {}
-        recordingRef.current = null;
-        setIsRecording(false);
-        isPreparingRef.current = false;
-        return;
+      if (cancelRequestedRef.current) {
+        await recording.stopAndUnloadAsync().catch(() => {});
+        await restoreAudioMode();
+        return false;
       }
 
       recordingRef.current = recording;
       setIsRecording(true);
-    } catch (e) {
-      console.warn('Failed to start voice recording:', e);
+      setIsPaused(false);
+      return true;
+    } catch (error) {
+      console.warn('Failed to start voice recording:', error);
       recordingRef.current = null;
-      setIsRecording(false);
+      resetState();
+      await restoreAudioMode();
+      return false;
     } finally {
       isPreparingRef.current = false;
     }
-  }, []);
+  }, [resetState, restoreAudioMode]);
+
+  const pauseRecording = useCallback(async () => {
+    const recording = recordingRef.current;
+    if (!recording || !isRecording || isPaused) return;
+    try {
+      await recording.pauseAsync();
+      setIsPaused(true);
+    } catch (error) {
+      console.warn('Failed to pause voice recording:', error);
+    }
+  }, [isPaused, isRecording]);
+
+  const resumeRecording = useCallback(async () => {
+    const recording = recordingRef.current;
+    if (!recording || !isRecording || !isPaused) return;
+    try {
+      await recording.startAsync();
+      setIsPaused(false);
+    } catch (error) {
+      console.warn('Failed to resume voice recording:', error);
+    }
+  }, [isPaused, isRecording]);
 
   const stopRecording = useCallback(async (): Promise<string | null> => {
-    shouldStopRef.current = true;
+    cancelRequestedRef.current = true;
 
-    // If still preparing, wait briefly for createAsync to finish so we can cleanly stop it
     let waitCount = 0;
-    while (isPreparingRef.current && waitCount < 10) {
-      await new Promise((r) => setTimeout(r, 50));
+    while (isPreparingRef.current && waitCount < 20) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
       waitCount++;
     }
 
     const recording = recordingRef.current;
     if (!recording) {
-      setIsRecording(false);
+      resetState();
       return null;
     }
 
@@ -95,28 +124,45 @@ export function useVoiceRecorder() {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       recordingRef.current = null;
-      setIsRecording(false);
+      resetState();
+      await restoreAudioMode();
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-      });
-
-      // Discard micro-taps (< 400ms)
-      if (status.durationMillis && status.durationMillis < 400) {
-        return null;
-      }
+      if (!status.durationMillis || status.durationMillis < 400) return null;
       return uri;
-    } catch (e) {
-      console.warn('Failed to stop voice recording:', e);
-      try {
-        await recording.stopAndUnloadAsync();
-      } catch {}
+    } catch (error) {
+      console.warn('Failed to stop voice recording:', error);
+      await recording.stopAndUnloadAsync().catch(() => {});
       recordingRef.current = null;
-      setIsRecording(false);
+      resetState();
+      await restoreAudioMode();
       return null;
     }
-  }, []);
+  }, [resetState, restoreAudioMode]);
 
-  return { isRecording, startRecording, stopRecording };
+  const cancelRecording = useCallback(async () => {
+    cancelRequestedRef.current = true;
+
+    let waitCount = 0;
+    while (isPreparingRef.current && waitCount < 20) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      waitCount++;
+    }
+
+    const recording = recordingRef.current;
+    recordingRef.current = null;
+    if (recording) await recording.stopAndUnloadAsync().catch(() => {});
+    resetState();
+    await restoreAudioMode();
+  }, [resetState, restoreAudioMode]);
+
+  return {
+    isRecording,
+    isPaused,
+    durationMillis,
+    startRecording,
+    pauseRecording,
+    resumeRecording,
+    stopRecording,
+    cancelRecording,
+  };
 }

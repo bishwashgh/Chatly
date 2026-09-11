@@ -108,7 +108,12 @@ const wsLink = new GraphQLWsLink(
     on: {
       connected: () => console.log('[Apollo] GraphQL subscription connected'),
       closed: (event) => {
-        if (event?.code !== 1000) console.warn('[Apollo] GraphQL subscription closed', event?.code);
+        // Android can close an idle socket with 1006 while the retry loop is
+        // already reconnecting. Do not present that normal network transition
+        // as a voice-message or chat failure.
+        if (event?.code !== 1000 && event?.code !== 1006) {
+          console.warn('[Apollo] GraphQL subscription closed', event?.code);
+        }
       },
       error: (error) => {
         const message = error instanceof Error ? error.message : String(error);
