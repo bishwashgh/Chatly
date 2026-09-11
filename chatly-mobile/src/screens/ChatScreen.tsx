@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -39,6 +40,8 @@ import {
   Reply,
   Trash2,
   Shield,
+  Download,
+  FileText,
 } from 'lucide-react-native';
 import {
   MESSAGES_QUERY,
@@ -131,8 +134,16 @@ export function ChatScreen({
   const [calling, setCalling] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listRef = useRef<FlashList<any>>(null);
+  const listMeasuredRef = useRef(false);
   const { isRecording, startRecording, stopRecording } = useVoiceRecorder();
   const { presentCall } = useCall();
+
+  useEffect(() => {
+    listMeasuredRef.current = false;
+    return () => {
+      listMeasuredRef.current = false;
+    };
+  }, [conversationId]);
 
   const { data, loading, error, refetch } = useQuery(MESSAGES_QUERY, { variables: { conversationId } });
   const [sendMessage] = useMutation(SEND_MESSAGE);
@@ -174,11 +185,17 @@ export function ChatScreen({
     unread.forEach((m: any) => markAsRead({ variables: { conversationId, messageId: m.id } }));
   }, [messages, currentUserId, conversationId, markAsRead]);
 
-  // Scroll to the newest message when new ones arrive.
-  useEffect(() => {
-    if (!messages.length) return;
-    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+  const scrollToLatest = useCallback((animated: boolean) => {
+    if (!listMeasuredRef.current || !messages.length) return;
+    requestAnimationFrame(() => {
+      if (listMeasuredRef.current) listRef.current?.scrollToEnd({ animated });
+    });
   }, [messages.length]);
+
+  // Scroll to the newest message only after FlashList has been measured.
+  useEffect(() => {
+    scrollToLatest(true);
+  }, [messages.length, scrollToLatest]);
 
   const handleDraftChange = useCallback(
     (text: string) => {
@@ -376,7 +393,31 @@ export function ChatScreen({
     [peerId, calling, peerName, peerAvatarUrl, startCall, presentCall],
   );
 
+  const openAttachment = useCallback(async (url: string) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) throw new Error('No app can open this file');
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error('Opening attachment failed:', error);
+      Alert.alert('Unable to open file', 'The attachment could not be downloaded or opened on this device.');
+    }
+  }, []);
+
+  const isImageAttachment = (item: any) =>
+    typeof item.mediaUrl === 'string' &&
+    (/\.(png|jpe?g|gif|webp|heic)(\?|$)/i.test(item.mediaUrl) || item.messageType === 'IMAGE');
+
   const renderMessageContent = (item: any) => {
+    if (item.mediaUrl && item.messageType === 'FILE' && isImageAttachment(item)) {
+      return (
+        <Pressable onPress={() => setLightbox(item.mediaUrl)}>
+          <Image source={{ uri: item.mediaUrl }} style={styles.mediaImageFull} contentFit="contain" transition={150} />
+          {!!item.content && <Text style={styles.attachmentName}>{item.content}</Text>}
+        </Pressable>
+      );
+    }
+
     switch (item.messageType) {
       case 'AUDIO':
         return <VoiceMessagePlayer uri={item.mediaUrl} />;
@@ -401,6 +442,17 @@ export function ChatScreen({
             shouldPlay={false}
           />
         );
+      case 'FILE':
+        return item.mediaUrl ? (
+          <Pressable style={styles.fileAttachment} onPress={() => openAttachment(item.mediaUrl)}>
+            <View style={styles.fileIcon}><FileText size={20} color={colors.primary} /></View>
+            <View style={styles.fileTextWrap}>
+              <Text style={styles.fileName} numberOfLines={2}>{item.content || 'Shared file'}</Text>
+              <Text style={styles.fileHint}>Tap to download</Text>
+            </View>
+            <Download size={18} color={colors.primary} />
+          </Pressable>
+        ) : <Text style={styles.bubbleText}>{item.content || 'Shared file'}</Text>;
       default:
         return <Text style={styles.bubbleText}>{item.content}</Text>;
     }
@@ -573,9 +625,11 @@ export function ChatScreen({
         keyExtractor={(item) => item.id}
         estimatedItemSize={72}
         contentContainerStyle={styles.listContent}
-        onContentSizeChange={() => {
-          if (messages.length) listRef.current?.scrollToEnd({ animated: false });
+        onLayout={() => {
+          listMeasuredRef.current = true;
+          scrollToLatest(false);
         }}
+        onContentSizeChange={() => scrollToLatest(false)}
         ListFooterComponent={peerTyping ? <View style={styles.typingBubble}><View style={styles.dot} /><View style={styles.dot} /><View style={styles.dot} /><Text style={styles.typingText}>Typing…</Text></View> : null}
         ListEmptyComponent={
           loading ? (
@@ -857,7 +911,14 @@ const styles = StyleSheet.create({
   },
   replyText: { flex: 1, color: '#3D4A3C', fontSize: 12 },
   replyClose: { color: '#3D4A3C', fontSize: 22 },
-  mediaImage: { width: '100%', maxWidth: 220, height: 220, borderRadius: radii.md, marginBottom: 4 },
+  mediaImage: { width: 240, maxWidth: '100%', height: 240, borderRadius: radii.md, marginBottom: 4 },
+  mediaImageFull: { width: 260, maxWidth: '100%', height: 300, borderRadius: radii.md, backgroundColor: 'rgba(0,0,0,0.06)' },
+  attachmentName: { color: '#6D7B6B', fontSize: 11, marginTop: 5 },
+  fileAttachment: { flexDirection: 'row', alignItems: 'center', gap: 9, minWidth: 210, maxWidth: 280, paddingVertical: 2 },
+  fileIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(0,110,40,0.10)', alignItems: 'center', justifyContent: 'center' },
+  fileTextWrap: { flex: 1 },
+  fileName: { color: '#1A1B1F', fontSize: 13, fontWeight: '700' },
+  fileHint: { color: '#6D7B6B', fontSize: 11, marginTop: 2 },
   mediaVideo: { width: '100%', maxWidth: 220, height: 260, borderRadius: radii.md, marginBottom: 4, backgroundColor: '#102A2B' },
   composerWrap: {
     paddingHorizontal: spacing.md,

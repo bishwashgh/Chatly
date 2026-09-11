@@ -55,11 +55,39 @@ function formatElapsed(totalSeconds: number) {
 
 function VideoCallGrid() {
   const tracks = useTracks([Track.Source.Camera]);
+  const remoteTracks = tracks.filter(
+    (trackRef) => isTrackReference(trackRef) && !trackRef.participant.isLocal,
+  );
+
   return (
     <View style={styles.grid}>
-      {tracks.filter(isTrackReference).map((trackRef) => (
-        <VideoTrack key={trackRef.publication.trackSid} trackRef={trackRef} style={styles.videoTile} />
-      ))}
+      {remoteTracks.length > 0 ? (
+        remoteTracks.map((trackRef) => (
+          <VideoTrack key={trackRef.publication.trackSid} trackRef={trackRef} style={styles.videoTile} />
+        ))
+      ) : (
+        <View style={styles.waitingForPeer}>
+          <Text style={styles.waitingText}>Waiting for {"your friend's"} camera…</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function LocalVideoPreview() {
+  const tracks = useTracks([Track.Source.Camera]);
+  const localTrack = tracks.find(
+    (trackRef) => isTrackReference(trackRef) && trackRef.participant.isLocal,
+  );
+
+  return (
+    <View style={styles.selfView}>
+      {localTrack && isTrackReference(localTrack) ? (
+        <VideoTrack trackRef={localTrack} style={styles.selfVideoTile} />
+      ) : (
+        <VideoIcon size={18} color="rgba(255,255,255,0.72)" />
+      )}
+      <Text style={styles.selfViewText}>You</Text>
     </View>
   );
 }
@@ -169,10 +197,7 @@ function CallRoomContent({ call, phase, setPhase, isMuted, setIsMuted, elapsed, 
       {isVideo ? (
         <View style={styles.videoStage}>
           <VideoCallGrid />
-          <View style={styles.selfView}>
-            <VideoIcon size={18} color="rgba(255,255,255,0.72)" />
-            <Text style={styles.selfViewText}>You</Text>
-          </View>
+          <LocalVideoPreview />
         </View>
       ) : (
         <View style={styles.centerContent}>
@@ -342,8 +367,9 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: '#000000', paddingHorizontal: 24 },
   centerContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
   videoStage: { flex: 1, position: 'relative', backgroundColor: 'transparent' },
-  selfView: { position: 'absolute', right: 4, top: 16, width: 92, height: 124, borderRadius: 18, backgroundColor: 'rgba(28,28,30,0.88)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-  selfViewText: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 5 },
+  selfView: { position: 'absolute', right: 4, top: 16, width: 92, height: 124, borderRadius: 18, backgroundColor: 'rgba(28,28,30,0.88)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  selfVideoTile: { ...StyleSheet.absoluteFillObject },
+  selfViewText: { position: 'absolute', left: 8, bottom: 7, color: '#fff', fontSize: 11, fontWeight: '600' },
   ringHalo: {
     position: 'absolute',
     width: 152,
@@ -360,7 +386,9 @@ const styles = StyleSheet.create({
   name: { color: '#fff', fontSize: 22, fontWeight: '700', textAlign: 'center' },
   statusText: { color: 'rgba(255,255,255,0.7)', fontSize: 15, textAlign: 'center' },
   grid: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 16 },
-  videoTile: { width: '48%', aspectRatio: 3 / 4, borderRadius: 16 },
+  videoTile: { width: '100%', height: '100%', borderRadius: 16 },
+  waitingForPeer: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: 'rgba(28,28,30,0.72)' },
+  waitingText: { color: 'rgba(255,255,255,0.72)', fontSize: 14 },
   bottom: { alignItems: 'center', gap: 8, paddingBottom: 4 },
   controls: { flexDirection: 'row', justifyContent: 'center', gap: 28, marginTop: 8 },
   controlBtn: {

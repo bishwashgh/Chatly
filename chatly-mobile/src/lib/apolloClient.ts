@@ -107,8 +107,17 @@ const wsLink = new GraphQLWsLink(
     },
     on: {
       connected: () => console.log('[Apollo] GraphQL subscription connected'),
-      closed: (event) => console.warn('[Apollo] GraphQL subscription closed', event?.code),
-      error: (error) => console.warn('[Apollo] GraphQL subscription error', error),
+      closed: (event) => {
+        if (event?.code !== 1000) console.warn('[Apollo] GraphQL subscription closed', event?.code);
+      },
+      error: (error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        // Mobile networks commonly abort idle sockets while the client retries.
+        // Keep unexpected protocol errors visible without logging routine aborts.
+        if (!/software caused connection abort|network request failed/i.test(message)) {
+          console.warn('[Apollo] GraphQL subscription error', error);
+        }
+      },
     },
   }),
 );
