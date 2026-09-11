@@ -103,6 +103,68 @@ npx eas-cli build --profile development --platform android
 # then install the APK on your phone
 ```
 
+### 6. Sign the release build (before publishing)
+
+Out of the box the release build is signed with the **debug** keystore. That installs fine for
+sideloading, but Google Play will reject it. To sign with a real key, generate one once and point
+Gradle at it:
+
+```bash
+# 1. Create the keystore (choose a password and remember it)
+cd chatly-mobile/android/app
+keytool -genkeypair -v -storetype PKCS12 \
+  -keystore chatly-release.keystore -alias chatly \
+  -keyalg RSA -keysize 2048 -validity 10000
+
+# 2. Point Gradle at it
+cd ..
+cp keystore.properties.example keystore.properties
+#    then edit keystore.properties and fill in storePassword / keyPassword
+
+# 3. Build a signed APK (or AAB for Play)
+./gradlew assembleRelease     # -> app/build/outputs/apk/release/app-release.apk
+./gradlew bundleRelease       # -> app/build/outputs/bundle/release/app-release.aab
+```
+
+Details worth knowing:
+
+- `android/keystore.properties`, `*.jks` and `*.keystore` are git-ignored, with `debug.keystore` as
+the single exception. **Never commit the release keystore or its passwords** — back them up offline.
+- If no `keystore.properties` exists, Gradle prints a warning and falls back to the debug key so the
+build still works. The APK it produces is not publishable.
+- On CI, skip the file and export `CHATLY_UPLOAD_STORE_FILE`, `CHATLY_UPLOAD_STORE_PASSWORD`,
+`CHATLY_UPLOAD_KEY_ALIAS` and `CHATLY_UPLOAD_KEY_PASSWORD` instead.
+- **EAS Build ignores all of this.** It injects its own `android/app/eas-build.gradle` and signs
+from `credentials.json`, so EAS-managed builds keep working unchanged.
+- Google Sign-In checks the signing certificate: after switching to a release key, add that key's
+SHA-1 as an Android OAuth client in Google Cloud Console or sign-in will fail with `DEVELOPER_ERROR`.
+
+### 7. Release build size
+
+R8 code shrinking and resource shrinking are enabled for release builds:
+
+| Setting | Where |
+| --- | --- |
+| `android.enableProguardInReleaseBuilds` | `android/gradle.properties`, mirrored in `app.json` |
+| `android.enableShrinkResourcesInReleaseBuilds` | `android/gradle.properties`, mirrored in `app.json` |
+| Project keep rules | `android/app/proguard-rules.pro` |
+
+The `app.json` copy matters: `android/` is generated, so anything only edited there is lost on
+`expo prebuild --clean`. Resource shrinking requires code shrinking, so never enable one without the
+other or Gradle will fail.
+
+⚠️ **Always smoke-test a release build after changing these.** Chatly ships LiveKit/WebRTC and
+Google Sign-In, which are reflection- and JNI-heavy — exactly what R8 strips. Test a video call,
+Google sign-in, sending a photo, and downloading an attachment. If R8 fails the build it writes
+`android/app/build/outputs/mapping/release/missing_rules.txt` with rules you can paste straight into
+`proguard-rules.pro`; see the comments at the bottom of that file for the other reports
+(`mapping.txt` to deobfuscate a crash, `usage.txt` and `resources.txt` to see what was removed).
+
+For reference, the biggest remaining size lever is unused CPU architectures: the default universal
+APK bundles native libraries for `armeabi-v7a, arm64-v8a, x86, x86_64`, and dropping the two x86
+variants (only needed by emulators) removes a large part of the payload. For Play, build an AAB
+with `bundleRelease` — Google splits it per architecture automatically.
+
 ### Notes
 
 - Phone and computer must be on the same Wi-Fi network when using a local backend.

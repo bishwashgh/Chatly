@@ -14,3 +14,14 @@ local.properties
 
 # Bundle artifacts
 *.jsbundle
+
+# Signing secrets — never commit these. debug.keystore is the one allowed
+# exception (it is tracked and only used for debug/local builds).
+keystore.properties
+*.jks
+*.keystore
+!debug.keystore
+
+# Build outputs
+*.apk
+*.aab
