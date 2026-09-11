@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useMutation } from '@apollo/client';
+import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import Animated, {
   useAnimatedStyle,
@@ -42,26 +43,28 @@ import { useTheme } from '../lib/ThemeContext';
 
 type Props = { navigation: any };
 
-function GoogleIcon({ size = 18 }: { size?: number }) {
+function GoogleIcon({ size = 20 }: { size?: number }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path
-        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
-        fill="#4285F4"
-      />
-      <Path
-        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.73-4.96H1.18v3.15C3.15 21.32 7.19 24 12 24z"
-        fill="#34A853"
-      />
-      <Path
-        d="M5.27 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.6H1.18C.43 8.13 0 9.87 0 12s.43 3.87 1.18 5.4l4.09-3.16z"
-        fill="#FBBC05"
-      />
-      <Path
-        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.19 0 3.15 2.68 1.18 6.6l4.09 3.16c.95-2.85 3.6-4.96 6.73-4.96z"
-        fill="#EA4335"
-      />
-    </Svg>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Path
+          d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+          fill="#4285F4"
+        />
+        <Path
+          d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.73-4.96H1.18v3.15C3.15 21.32 7.19 24 12 24z"
+          fill="#34A853"
+        />
+        <Path
+          d="M5.27 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.6H1.18C.43 8.13 0 9.87 0 12s.43 3.87 1.18 5.4l4.09-3.16z"
+          fill="#FBBC05"
+        />
+        <Path
+          d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.19 0 3.15 2.68 1.18 6.6l4.09 3.16c.95-2.85 3.6-4.96 6.73-4.96z"
+          fill="#EA4335"
+        />
+      </Svg>
+    </View>
   );
 }
 
@@ -169,6 +172,7 @@ export function SignInScreen({ navigation }: Props) {
   };
 
   const google = async () => {
+    Haptics.selectionAsync();
     setGoogleBusy(true);
     setError('');
     try {
@@ -278,14 +282,19 @@ export function SignInScreen({ navigation }: Props) {
           disabled={busy || googleBusy}
         >
           {googleBusy ? (
-            <ActivityIndicator color={colors.primary} size="small" />
+            <View style={styles.googleLoadingRow}>
+              <ActivityIndicator color={colors.primary} size="small" />
+              <Text style={[authStyles.googleButtonText, isDark && styles.textDark]}>
+                Connecting to Google...
+              </Text>
+            </View>
           ) : (
-            <>
-              <GoogleIcon size={18} />
+            <View style={styles.googleContentRow}>
+              <GoogleIcon size={20} />
               <Text style={[authStyles.googleButtonText, isDark && styles.textDark]}>
                 Continue with Google
               </Text>
-            </>
+            </View>
           )}
         </Pressable>
       </View>
@@ -497,6 +506,7 @@ export function SignUpScreen({ navigation }: Props) {
             pressed && styles.btnPressed,
           ]}
           onPress={async () => {
+            Haptics.selectionAsync();
             setGoogleBusy(true);
             try {
               await loginWithGoogle();
@@ -509,14 +519,19 @@ export function SignUpScreen({ navigation }: Props) {
           disabled={busy || googleBusy}
         >
           {googleBusy ? (
-            <ActivityIndicator color={colors.primary} size="small" />
+            <View style={styles.googleLoadingRow}>
+              <ActivityIndicator color={colors.primary} size="small" />
+              <Text style={[authStyles.googleButtonText, isDark && styles.textDark]}>
+                Connecting to Google...
+              </Text>
+            </View>
           ) : (
-            <>
-              <GoogleIcon size={18} />
+            <View style={styles.googleContentRow}>
+              <GoogleIcon size={20} />
               <Text style={[authStyles.googleButtonText, isDark && styles.textDark]}>
                 Continue with Google
               </Text>
-            </>
+            </View>
           )}
         </Pressable>
       </View>
@@ -1083,6 +1098,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.sm,
     fontWeight: '600',
+  },
+  googleLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  googleContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
   },
   textDark: {
     color: '#F1F0F5',

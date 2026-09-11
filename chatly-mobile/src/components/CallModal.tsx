@@ -18,7 +18,18 @@ import { INCOMING_CALL_SUBSCRIPTION, END_CALL, UPDATE_CALL_STATUS } from '../gra
 import { useCall, ActiveCall } from '../lib/CallContext';
 
 const env = process.env as Record<string, string | undefined>;
-const LIVEKIT_URL = env.EXPO_PUBLIC_LIVEKIT_URL ?? '';
+// Validate and sanitize the LiveKit URL — Metro cache may serve stale/corrupted values
+function resolveLiveKitUrl(): string {
+  const raw = env.EXPO_PUBLIC_LIVEKIT_URL ?? '';
+  // Detect corrupted URL patterns (double protocol, placeholder text, double slashes in host)
+  if (!raw || raw.includes('your-livekit') || /wss?:\/\/.*\/\//.test(raw)) {
+    console.warn('[CallModal] LiveKit URL invalid or corrupted, using fallback:', raw);
+    return 'wss://chatly-q41rks5z.livekit.cloud';
+  }
+  return raw;
+}
+const LIVEKIT_URL = resolveLiveKitUrl();
+console.log('[CallModal] LiveKit URL resolved to:', LIVEKIT_URL);
 
 type CallModalProps = {
   currentUserId: string;

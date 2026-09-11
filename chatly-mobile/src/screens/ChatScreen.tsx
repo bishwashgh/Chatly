@@ -10,6 +10,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -63,6 +64,7 @@ import { colors, radii, shadows, spacing } from '../lib/theme';
 import { useTheme } from '../lib/ThemeContext';
 import { AttachmentSheet, AttachmentAction } from '../components/AttachmentSheet';
 import { MessageContextMenu, MessageMenuAction } from '../components/MessageContextMenu';
+import { ReactNativeFile } from 'apollo-upload-client';
 
 const QUICK_REACTIONS = [String.fromCodePoint(0x2764, 0xFE0F), String.fromCodePoint(0x1F602), String.fromCodePoint(0x1F44D), String.fromCodePoint(0x1F62E), String.fromCodePoint(0x1F622)];
 const TYPING_DEBOUNCE_MS = 2500;
@@ -186,62 +188,102 @@ export function ChatScreen({
     if (!draft.trim()) return;
     await Haptics.selectionAsync();
     const content = replyingTo ? `↪ ${replyingTo.content ?? 'Message'}\n${draft.trim()}` : draft.trim();
-    await sendMessage({ variables: { input: { conversationId, content, messageType: 'TEXT' } } });
-    setDraft('');
-    setReplyingTo(null);
-    setTyping({ variables: { conversationId, isTyping: false } });
+    try {
+      await sendMessage({ variables: { input: { conversationId, content, messageType: 'TEXT' } } });
+      setDraft('');
+      setReplyingTo(null);
+      setTyping({ variables: { conversationId, isTyping: false } });
+    } catch (e) {
+      console.error('Send message failed:', e);
+      const msg = e instanceof Error ? e.message.replace(/^GraphQL error:\s*/, '') : 'Unknown error';
+      Alert.alert('Message not sent', msg || 'Check your connection and try again.');
+    }
   }, [draft, replyingTo, conversationId, sendMessage, setTyping]);
 
   const handleVoiceSend = useCallback(async () => {
-    const uri = await stopRecording();
-    if (!uri) return;
-    const { data: uploadData } = await uploadMessageMedia({
-      variables: { file: { uri, name: 'voice-note.m4a', type: 'audio/m4a' } },
-    });
-    const mediaUrl = uploadData?.uploadMessageMedia ?? uri;
-    await sendMessage({ variables: { input: { conversationId, mediaUrl, messageType: 'AUDIO' } } });
+    try {
+      const uri = await stopRecording();
+      if (!uri) return;
+      const file = new ReactNativeFile({
+        uri,
+        name: `voice-${Date.now()}.m4a`,
+        type: 'audio/m4a',
+      });
+      const { data: uploadData } = await uploadMessageMedia({
+        variables: { file },
+      });
+      const mediaUrl = uploadData?.uploadMessageMedia ?? uri;
+      await sendMessage({ variables: { input: { conversationId, mediaUrl, messageType: 'AUDIO' } } });
+    } catch (e) {
+      console.error('Voice send failed:', e);
+      Alert.alert('Voice message failed', 'Could not send voice note. Please try again.');
+    }
   }, [stopRecording, conversationId, sendMessage, uploadMessageMedia]);
 
   const handlePickMedia = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets?.length) return;
-    const asset = result.assets[0];
-    const isVideo = asset.type === 'video';
-    const { data: uploadData } = await uploadMessageMedia({
-      variables: {
-        file: {
-          uri: asset.uri,
-          name: asset.fileName ?? ('media-' + Date.now()),
-          type: isVideo ? 'video/mp4' : 'image/jpeg',
-        },
-      },
-    });
-    const mediaUrl = uploadData?.uploadMessageMedia ?? asset.uri;
-    await sendMessage({
-      variables: { input: { conversationId, mediaUrl, messageType: isVideo ? 'VIDEO' : 'IMAGE' } },
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+      const isVideo = asset.type === 'video';
+      const file = new ReactNativeFile({
+        uri: asset.uri,
+        name: asset.fileName ?? `media-${Date.now()}.${isVideo ? 'mp4' : 'jpg'}`,
+        type: isVideo ? 'video/mp4' : (asset.mimeType ?? 'image/jpeg'),
+      });
+      const { data: uploadData } = await uploadMessageMedia({
+        variables: { file },
+      });
+      const mediaUrl = uploadData?.uploadMessageMedia ?? asset.uri;
+      await sendMessage({
+        variables: { input: { conversationId, mediaUrl, messageType: isVideo ? 'VIDEO' : 'IMAGE' } },
+      });
+    } catch (e) {
+      console.error('Media upload failed:', e);
+      Alert.alert('Upload failed', 'Could not upload media. Please try again.');
+    }
   }, [conversationId, sendMessage, uploadMessageMedia]);
 
   const handleAttachment = useCallback(async (action: AttachmentAction, asset?: any) => {
     setAttachmentVisible(false);
     if (action === 'photos') return handlePickMedia();
     if (action === 'camera') {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) return;
-      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 0.8 });
-      if (result.canceled || !result.assets?.length) return;
-      const picked = result.assets[0];
-      const isVideo = picked.type === 'video';
-      const { data: uploadData } = await uploadMessageMedia({ variables: { file: { uri: picked.uri, name: picked.fileName ?? `camera-${Date.now()}`, type: isVideo ? 'video/mp4' : 'image/jpeg' } } });
-      await sendMessage({ variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? picked.uri, messageType: isVideo ? 'VIDEO' : 'IMAGE' } } });
+      try {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) return;
+        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 0.8 });
+        if (result.canceled || !result.assets?.length) return;
+        const picked = result.assets[0];
+        const isVideo = picked.type === 'video';
+        const file = new ReactNativeFile({
+          uri: picked.uri,
+          name: picked.fileName ?? `camera-${Date.now()}.${isVideo ? 'mp4' : 'jpg'}`,
+          type: isVideo ? 'video/mp4' : 'image/jpeg',
+        });
+        const { data: uploadData } = await uploadMessageMedia({ variables: { file } });
+        await sendMessage({ variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? picked.uri, messageType: isVideo ? 'VIDEO' : 'IMAGE' } } });
+      } catch (e) {
+        console.error('Camera upload failed:', e);
+        Alert.alert('Camera upload failed', 'Could not send captured media.');
+      }
       return;
     }
     if (action === 'document' && asset?.uri) {
-      const { data: uploadData } = await uploadMessageMedia({ variables: { file: { uri: asset.uri, name: asset.name ?? `file-${Date.now()}`, type: asset.mimeType ?? 'application/octet-stream' } } });
-      await sendMessage({ variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? asset.uri, content: asset.name, messageType: 'FILE' } } });
+      try {
+        const file = new ReactNativeFile({
+          uri: asset.uri,
+          name: asset.name ?? `file-${Date.now()}`,
+          type: asset.mimeType ?? 'application/octet-stream',
+        });
+        const { data: uploadData } = await uploadMessageMedia({ variables: { file } });
+        await sendMessage({ variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? asset.uri, content: asset.name, messageType: 'FILE' } } });
+      } catch (e) {
+        console.error('Document upload failed:', e);
+        Alert.alert('File upload failed', 'Could not send file. Please try again.');
+      }
     }
   }, [conversationId, handlePickMedia, sendMessage, uploadMessageMedia]);
 

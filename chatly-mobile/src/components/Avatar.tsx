@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,36 +13,48 @@ type AvatarProps = {
 };
 
 export function Avatar({ uri, name, size = 48, isOnline, showRing }: AvatarProps) {
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [uri]);
+
   const initials = (name ?? '?')
     .split(' ')
+    .filter(Boolean)
     .map((part) => part[0])
     .slice(0, 2)
     .join('')
-    .toUpperCase();
+    .toUpperCase() || '?';
+
+  const innerSize = showRing ? size - 4 : size;
 
   const fallback = (
-    <LinearGradient colors={gradients.primary} style={[styles.fallback, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[styles.initials, { fontSize: size * 0.34 }]}>{initials}</Text>
+    <LinearGradient colors={gradients.primary} style={[styles.fallback, { width: innerSize, height: innerSize, borderRadius: innerSize / 2 }]}>
+      <Text style={[styles.initials, { fontSize: innerSize * 0.36 }]}>{initials}</Text>
     </LinearGradient>
   );
 
-  const inner = uri ? (
+  const showImage = Boolean(uri && !imageError);
+
+  const inner = showImage ? (
     <Image
       source={{ uri }}
-      style={{ width: size, height: size, borderRadius: size / 2 }}
+      style={{ width: innerSize, height: innerSize, borderRadius: innerSize / 2 }}
       contentFit="cover"
       transition={150}
+      onError={() => setImageError(true)}
     />
   ) : fallback;
 
   return (
-    <View style={{ width: size, height: size }}>
+    <View style={{ width: size, height: size, position: 'relative' }}>
       {showRing ? (
         <LinearGradient
           colors={gradients.primary}
           style={[styles.ring, { width: size, height: size, borderRadius: size / 2 }]}
         >
-          <View style={[styles.ringInner, { width: size - 4, height: size - 4, borderRadius: (size - 4) / 2 }]}>
+          <View style={[styles.ringInner, { width: innerSize, height: innerSize, borderRadius: innerSize / 2 }]}>
             {inner}
           </View>
         </LinearGradient>
@@ -53,7 +65,13 @@ export function Avatar({ uri, name, size = 48, isOnline, showRing }: AvatarProps
         <View
           style={[
             styles.dot,
-            { width: Math.max(9, size * 0.25), height: Math.max(9, size * 0.25), borderRadius: size * 0.14, right: -1, bottom: -1 },
+            {
+              width: Math.max(10, size * 0.28),
+              height: Math.max(10, size * 0.28),
+              borderRadius: Math.max(5, size * 0.14),
+              right: -1,
+              bottom: -1,
+            },
           ]}
         />
       )}

@@ -67,7 +67,15 @@ function formatListTime(iso: string) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-export function ConversationsScreen({ navigation }: any) {
+export function ConversationsScreen({
+  navigation,
+  hideHeader = false,
+  hideDock = false,
+}: {
+  navigation: any;
+  hideHeader?: boolean;
+  hideDock?: boolean;
+}) {
   const { currentUser } = useAuth();
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -255,24 +263,32 @@ export function ConversationsScreen({ navigation }: any) {
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#121316' : colors.bg }]}>
       {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.headerLeft}>
-          <Image
-            source={require('../../assets/chatly_logo.png')}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-          <Text style={[styles.headerTitle, isDark && styles.textDark]}>Chatly</Text>
+      {!hideHeader && (
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+          <View style={styles.headerLeft}>
+            <Image
+              source={require('../../assets/chatly_logo.png')}
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+            <Text style={[styles.headerTitle, isDark && styles.textDark]}>Chatly</Text>
+          </View>
+          <Pressable
+            style={styles.headerProfileBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Avatar
+              uri={currentUser?.avatarUrl}
+              name={currentUser?.name || currentUser?.username}
+              size={36}
+              isOnline
+              showRing
+            />
+          </Pressable>
         </View>
-        <Pressable
-          style={styles.headerProfileBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Open settings"
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <User size={18} color="#FFFFFF" strokeWidth={2.2} />
-        </Pressable>
-      </View>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchBarWrap}>
@@ -353,56 +369,54 @@ export function ConversationsScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* Grouped Conversations Card */}
-        <View style={[styles.conversationsCard, isDark && styles.cardDark]}>
-          {loading ? (
-            <View style={styles.stateBox}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.stateText, isDark && styles.textSecondaryDark]}>
-                Loading conversations…
-              </Text>
+        {/* Conversations List */}
+        {loading ? (
+          <View style={styles.stateBox}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.stateText, isDark && styles.textSecondaryDark]}>
+              Loading conversations…
+            </Text>
+          </View>
+        ) : error ? (
+          <View style={styles.stateBox}>
+            <Text style={[styles.stateTitle, isDark && styles.textDark]}>
+              Couldn't load your chats
+            </Text>
+            <Text style={[styles.stateText, isDark && styles.textSecondaryDark]}>
+              Check your connection and try again.
+            </Text>
+            <Pressable style={styles.retryBtn} onPress={() => refetch()}>
+              <RefreshCw size={15} color="#fff" />
+              <Text style={styles.retryText}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <MessageCircle size={32} color={colors.primary} />
             </View>
-          ) : error ? (
-            <View style={styles.stateBox}>
-              <Text style={[styles.stateTitle, isDark && styles.textDark]}>
-                Couldn’t load your chats
-              </Text>
-              <Text style={[styles.stateText, isDark && styles.textSecondaryDark]}>
-                Check your connection and try again.
-              </Text>
-              <Pressable style={styles.retryBtn} onPress={() => refetch()}>
-                <RefreshCw size={15} color="#fff" />
-                <Text style={styles.retryText}>Try again</Text>
-              </Pressable>
-            </View>
-          ) : filtered.length === 0 ? (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <MessageCircle size={32} color={colors.primary} />
-              </View>
-              <Text style={[styles.emptyTitle, isDark && styles.textDark]}>No Conversations Yet</Text>
-              <Text style={[styles.emptyText, isDark && styles.textSecondaryDark]}>
-                Start chatting with your friends securely and privately.
-              </Text>
-              <Pressable
-                style={styles.emptyCta}
-                onPress={() => navigation.navigate('Friends')}
-              >
-                <UserPlus size={16} color="#fff" />
-                <Text style={styles.emptyCtaText}>Add New Friend</Text>
-              </Pressable>
-            </View>
-          ) : (
-            filtered.map((item: any, idx: number) => (
-              <React.Fragment key={item.id}>
-                {renderItem({ item })}
-                {idx < filtered.length - 1 && (
-                  <View style={[styles.itemDivider, isDark && styles.dividerDark]} />
-                )}
-              </React.Fragment>
-            ))
-          )}
-        </View>
+            <Text style={[styles.emptyTitle, isDark && styles.textDark]}>No Conversations Yet</Text>
+            <Text style={[styles.emptyText, isDark && styles.textSecondaryDark]}>
+              Start chatting with your friends securely and privately.
+            </Text>
+            <Pressable
+              style={styles.emptyCta}
+              onPress={() => navigation.navigate('Friends')}
+            >
+              <UserPlus size={16} color="#fff" />
+              <Text style={styles.emptyCtaText}>Add New Friend</Text>
+            </Pressable>
+          </View>
+        ) : (
+          filtered.map((item: any, idx: number) => (
+            <React.Fragment key={item.id}>
+              {renderItem({ item })}
+              {idx < filtered.length - 1 && (
+                <View style={[styles.itemDivider, isDark && styles.dividerDark]} />
+              )}
+            </React.Fragment>
+          ))
+        )}
       </ScrollView>
 
       {/* Floating Action Button (FAB) */}
@@ -420,11 +434,13 @@ export function ConversationsScreen({ navigation }: any) {
       </Pressable>
 
       {/* Bottom Dock */}
-      <FloatingDock
-        active="chats"
-        navigation={navigation}
-        unreadCount={conversations.reduce((sum: number, item: any) => sum + (item.unreadCount ?? 0), 0)}
-      />
+      {!hideDock && (
+        <FloatingDock
+          active="chats"
+          navigation={navigation}
+          unreadCount={conversations.reduce((sum: number, item: any) => sum + (item.unreadCount ?? 0), 0)}
+        />
+      )}
 
       <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} navigation={navigation} />
 
@@ -549,7 +565,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E9E7ED',
     borderRadius: radii.md,
     paddingHorizontal: 12,
-    height: 44,
+    height: 46,
     gap: 8,
   },
   searchBarDark: {
@@ -615,15 +631,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#3D4A3C',
     textAlign: 'center',
-  },
-  conversationsCard: {
-    backgroundColor: '#F4F3F8',
-    borderRadius: 20,
-    overflow: 'hidden',
-    ...shadows.sm,
-  },
-  cardDark: {
-    backgroundColor: '#1A1B1F',
   },
   chatRow: {
     flexDirection: 'row',

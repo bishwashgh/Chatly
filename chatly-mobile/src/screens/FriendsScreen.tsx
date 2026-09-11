@@ -16,7 +16,6 @@ import {
   Check,
   X,
   UserPlus,
-  Lock,
   QrCode,
   User,
   ChevronRight,
@@ -40,7 +39,15 @@ import { colors, radii, shadows, spacing } from '../lib/theme';
 import { QrScannerModal } from '../components/QrScannerModal';
 import { useTheme } from '../lib/ThemeContext';
 
-export function FriendsScreen({ navigation }: any) {
+export function FriendsScreen({
+  navigation,
+  hideHeader = false,
+  hideDock = false,
+}: {
+  navigation: any;
+  hideHeader?: boolean;
+  hideDock?: boolean;
+}) {
   const { currentUser } = useAuth();
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -116,25 +123,35 @@ export function FriendsScreen({ navigation }: any) {
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#121316' : colors.bg }]}>
       {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.headerLeft}>
-          <Image
-            source={require('../../assets/chatly_logo.png')}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-          <Text style={[styles.headerTitle, isDark && styles.textDark]}>Chatly</Text>
+      {!hideHeader && (
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+          <View style={styles.headerLeft}>
+            <Image
+              source={require('../../assets/chatly_logo.png')}
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+            <Text style={[styles.headerTitle, isDark && styles.textDark]}>Chatly</Text>
+          </View>
+          <Pressable
+            style={styles.headerProfileBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Avatar
+              uri={currentUser?.avatarUrl}
+              name={currentUser?.name || currentUser?.username}
+              size={36}
+              isOnline
+              showRing
+            />
+          </Pressable>
         </View>
-        <Pressable
-          style={styles.headerProfileBtn}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <User size={18} color="#FFFFFF" strokeWidth={2.2} />
-        </Pressable>
-      </View>
+      )}
 
-      {/* Search & QR Bar */}
-      <View style={styles.searchBarRow}>
+      {/* Search Bar */}
+      <View style={styles.searchBarWrap}>
         <View style={[styles.searchBar, isDark && styles.searchBarDark]}>
           <Search size={18} color="#6D7B6B" />
           <TextInput
@@ -144,19 +161,27 @@ export function FriendsScreen({ navigation }: any) {
             value={search}
             onChangeText={handleSearch}
           />
-          {search.length > 0 && (
+          {search.length > 0 ? (
             <Pressable onPress={() => setSearch('')} hitSlop={8}>
-              <X size={16} color="#6D7B6B" />
+              <View style={styles.clearBtn}>
+                <X size={14} color="#6D7B6B" />
+              </View>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.qrInlineBtn,
+                isDark && styles.qrInlineBtnDark,
+                pressed && styles.btnPressed,
+              ]}
+              onPress={() => setQrVisible(true)}
+              hitSlop={8}
+              accessibilityLabel="Scan QR code"
+            >
+              <QrCode size={18} color={isDark ? '#53E16F' : colors.primary} />
             </Pressable>
           )}
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.qrButton, pressed && styles.btnPressed]}
-          onPress={() => setQrVisible(true)}
-          accessibilityLabel="Scan QR code"
-        >
-          <QrCode size={20} color="#FFFFFF" />
-        </Pressable>
       </View>
 
       <ScrollView
@@ -166,20 +191,6 @@ export function FriendsScreen({ navigation }: any) {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Friend-Gated Vault Banner */}
-        <View style={[styles.vaultCard, isDark && styles.vaultCardDark]}>
-          <View style={styles.vaultIconWrap}>
-            <Lock size={18} color={colors.secondary} strokeWidth={2.4} />
-          </View>
-          <View style={styles.vaultTextWrap}>
-            <Text style={[styles.vaultTitle, isDark && styles.vaultTitleDark]}>
-              Friend-Gated Vault
-            </Text>
-            <Text style={[styles.vaultDesc, isDark && styles.vaultDescDark]}>
-              Only verified connections can exchange secure payloads and chat messages.
-            </Text>
-          </View>
-        </View>
 
         {/* Search Results (if searching) */}
         {search.trim().length > 0 && (
@@ -246,6 +257,7 @@ export function FriendsScreen({ navigation }: any) {
         )}
 
         {/* Requests Section */}
+        {/* Requests Section */}
         {incoming.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -254,50 +266,45 @@ export function FriendsScreen({ navigation }: any) {
                 <Text style={styles.newBadgeText}>{incoming.length} New</Text>
               </View>
             </View>
-            <View style={[styles.groupedCard, isDark && styles.cardDark]}>
-              {incoming.map((req: any, idx: number) => {
-                const u = req.user;
-                return (
-                  <React.Fragment key={req.id || u.id}>
-                    <View style={styles.requestRow}>
-                      <View style={styles.requestAvatarWrap}>
-                        <Avatar uri={u.avatarUrl} name={u.name} size={48} />
-                        <View style={styles.boltBadge}>
-                          <Zap size={11} color="#FFFFFF" strokeWidth={2.6} />
-                        </View>
-                      </View>
-                      <View style={styles.requestTextWrap}>
-                        <Text style={[styles.friendName, isDark && styles.textDark]}>{u.name}</Text>
-                        <Text style={styles.friendSub}>Via QR Scan • Connected circle</Text>
-                      </View>
-                      <View style={styles.requestActionsRow}>
-                        <Pressable
-                          style={styles.declineBtn}
-                          onPress={() => run(declineRequest, u.id)}
-                          disabled={busy(u.id)}
-                        >
-                          <X size={18} color="#6D7B6B" />
-                        </Pressable>
-                        <Pressable
-                          style={styles.acceptBtn}
-                          onPress={() => run(acceptRequest, u.id, `${u.name} is now your friend`)}
-                          disabled={busy(u.id)}
-                        >
-                          {busy(u.id) ? (
-                            <ActivityIndicator size="small" color="#fff" />
-                          ) : (
-                            <Check size={18} color="#FFFFFF" strokeWidth={2.4} />
-                          )}
-                        </Pressable>
+            {incoming.map((req: any) => {
+              const u = req.user;
+              return (
+                <View key={req.id || u.id} style={[styles.requestCard, isDark && styles.cardDark]}>
+                  <View style={styles.requestLeftWrap}>
+                    <View style={styles.requestAvatarWrap}>
+                      <Avatar uri={u.avatarUrl} name={u.name} size={46} />
+                      <View style={styles.boltBadge}>
+                        <Zap size={10} color="#FFFFFF" strokeWidth={2.6} />
                       </View>
                     </View>
-                    {idx < incoming.length - 1 && (
-                      <View style={[styles.rowDivider, isDark && styles.dividerDark]} />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </View>
+                    <View style={styles.requestTextWrap}>
+                      <Text style={[styles.friendName, isDark && styles.textDark]}>{u.name}</Text>
+                      <Text style={styles.friendSub}>Via QR Scan • Connected circle</Text>
+                    </View>
+                  </View>
+                  <View style={styles.requestActionsRow}>
+                    <Pressable
+                      style={styles.declineBtn}
+                      onPress={() => run(declineRequest, u.id)}
+                      disabled={busy(u.id)}
+                    >
+                      <X size={17} color="#6D7B6B" />
+                    </Pressable>
+                    <Pressable
+                      style={styles.acceptBtn}
+                      onPress={() => run(acceptRequest, u.id, `${u.name} is now your friend`)}
+                      disabled={busy(u.id)}
+                    >
+                      {busy(u.id) ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Check size={17} color="#FFFFFF" strokeWidth={2.4} />
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -331,7 +338,7 @@ export function FriendsScreen({ navigation }: any) {
                     <Avatar
                       uri={friend.avatarUrl}
                       name={friend.name}
-                      size={48}
+                      size={46}
                       isOnline={friend.isOnline}
                     />
                     <View style={styles.friendTextWrap}>
@@ -354,10 +361,76 @@ export function FriendsScreen({ navigation }: any) {
             )}
           </View>
         </View>
+
+        {/* Suggested Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, isDark && styles.textDark]}>Suggested</Text>
+            <Text style={styles.seeAllText}>Discover</Text>
+          </View>
+
+          <View style={styles.suggestedGrid}>
+            <View style={[styles.suggestedCard, isDark && styles.cardDark]}>
+              <Avatar
+                uri="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
+                name="Oliver Queen"
+                size={56}
+              />
+              <Text style={[styles.suggestedName, isDark && styles.textDark]} numberOfLines={1}>
+                Oliver Queen
+              </Text>
+              <Text style={styles.suggestedSub} numberOfLines={1}>
+                4 mutual friends
+              </Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.suggestedConnectBtn,
+                  isDark && styles.suggestedConnectBtnDark,
+                  pressed && styles.btnPressed,
+                ]}
+                onPress={() => Alert.alert('Request Sent', 'Connection request sent to Oliver Queen')}
+              >
+                <UserPlus size={14} color={isDark ? '#53E16F' : colors.primary} />
+                <Text style={[styles.suggestedConnectText, isDark && styles.suggestedConnectTextDark]}>
+                  Connect
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={[styles.suggestedCard, isDark && styles.cardDark]}>
+              <Avatar
+                uri="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200"
+                name="Chloe Decker"
+                size={56}
+              />
+              <Text style={[styles.suggestedName, isDark && styles.textDark]} numberOfLines={1}>
+                Chloe Decker
+              </Text>
+              <Text style={styles.suggestedSub} numberOfLines={1}>
+                From your contacts
+              </Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.suggestedConnectBtn,
+                  isDark && styles.suggestedConnectBtnDark,
+                  pressed && styles.btnPressed,
+                ]}
+                onPress={() => Alert.alert('Request Sent', 'Connection request sent to Chloe Decker')}
+              >
+                <UserPlus size={14} color={isDark ? '#53E16F' : colors.primary} />
+                <Text style={[styles.suggestedConnectText, isDark && styles.suggestedConnectTextDark]}>
+                  Connect
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
       </ScrollView>
 
       {/* Bottom Dock */}
-      <FloatingDock active="friends" navigation={navigation} />
+      {!hideDock && (
+        <FloatingDock active="friends" navigation={navigation} />
+      )}
 
       {/* QR Scanner Modal */}
       <QrScannerModal
@@ -404,15 +477,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  searchBarWrap: {
     paddingHorizontal: spacing.md,
     marginBottom: spacing.sm,
-    gap: 10,
   },
   searchBar: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#E9E7ED',
@@ -433,66 +502,32 @@ const styles = StyleSheet.create({
   inputDark: {
     color: '#F1F0F5',
   },
-  qrButton: {
-    width: 46,
-    height: 46,
-    borderRadius: radii.md,
-    backgroundColor: colors.primary,
+  clearBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
+  },
+  qrInlineBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 110, 40, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrInlineBtnDark: {
+    backgroundColor: 'rgba(83, 225, 111, 0.15)',
   },
   btnPressed: {
-    transform: [{ scale: 0.94 }],
-    opacity: 0.9,
+    transform: [{ scale: 0.92 }],
+    opacity: 0.85,
   },
   scrollContent: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.xs,
-  },
-  vaultCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#D8E2FF',
-    borderRadius: 16,
-    padding: spacing.md,
-    gap: 12,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 88, 188, 0.12)',
-  },
-  vaultCardDark: {
-    backgroundColor: '#17243B',
-    borderColor: 'rgba(216, 226, 255, 0.15)',
-  },
-  vaultIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 88, 188, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  vaultTextWrap: {
-    flex: 1,
-  },
-  vaultTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#001A41',
-    marginBottom: 2,
-  },
-  vaultTitleDark: {
-    color: '#ADC6FF',
-  },
-  vaultDesc: {
-    fontSize: 12.5,
-    color: '#004493',
-    lineHeight: 17,
-  },
-  vaultDescDark: {
-    color: '#D8E2FF',
   },
   section: {
     marginBottom: spacing.md,
@@ -525,20 +560,39 @@ const styles = StyleSheet.create({
     color: '#6D7B6B',
     fontWeight: '500',
   },
+  seeAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
   groupedCard: {
     backgroundColor: '#F4F3F8',
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
     overflow: 'hidden',
     ...shadows.sm,
   },
   cardDark: {
-    backgroundColor: '#1A1B1F',
+    backgroundColor: '#1C1D22',
+    borderColor: 'rgba(255, 255, 255, 0.07)',
   },
-  requestRow: {
+  requestCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    backgroundColor: '#F4F3F8',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
+    ...shadows.sm,
+  },
+  requestLeftWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
     gap: 12,
   },
   requestAvatarWrap: {
@@ -548,8 +602,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 18,
-    height: 18,
+    width: 17,
+    height: 17,
     borderRadius: 9,
     backgroundColor: colors.primary,
     alignItems: 'center',
@@ -564,6 +618,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginLeft: 8,
   },
   declineBtn: {
     width: 36,
@@ -580,6 +635,55 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  suggestedGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  suggestedCard: {
+    flex: 1,
+    backgroundColor: '#F4F3F8',
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
+    ...shadows.sm,
+  },
+  suggestedName: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: '#1A1B1F',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  suggestedSub: {
+    fontSize: 12,
+    color: '#6D7B6B',
+    marginTop: 2,
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  suggestedConnectBtn: {
+    width: '100%',
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 110, 40, 0.09)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  suggestedConnectBtnDark: {
+    backgroundColor: 'rgba(83, 225, 111, 0.15)',
+  },
+  suggestedConnectText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  suggestedConnectTextDark: {
+    color: '#53E16F',
   },
   friendRow: {
     flexDirection: 'row',

@@ -4,20 +4,52 @@ import { onError } from '@apollo/client/link/error';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
-import { createUploadLink } from 'apollo-upload-client';
+import { createUploadLink, ReactNativeFile } from 'apollo-upload-client';
 import { tokenStorage } from './secureStore';
 
 const env = process.env as Record<string, string | undefined>;
 const HTTP_URL = env.EXPO_PUBLIC_API_HTTP_URL ?? 'http://localhost:4000/graphql';
 const WS_URL = env.EXPO_PUBLIC_API_WS_URL ?? 'ws://localhost:4000/graphql';
 
-const uploadLink = createUploadLink({ uri: HTTP_URL });
+/**
+ * React Native represents picked files as plain { uri, name, type } objects
+ * or ReactNativeFile instances. We configure apollo-upload-client to extract them
+ * into multipart FormData parts so the GraphQL server receives Upload! scalars.
+ */
+function isReactNativeFile(value: any): boolean {
+  return (
+    value != null &&
+    (value instanceof ReactNativeFile ||
+      (typeof value === 'object' &&
+        typeof value.uri === 'string' &&
+        (typeof value.name === 'string' || typeof value.type === 'string')))
+  );
+}
+
+const uploadLink = createUploadLink({
+  uri: HTTP_URL,
+  headers: {
+    'apollo-require-preflight': 'true',
+  },
+  isExtractableFile: (value: any) =>
+    (typeof File !== 'undefined' && value instanceof File) ||
+    (typeof Blob !== 'undefined' && value instanceof Blob) ||
+    isReactNativeFile(value),
+  formDataAppendFile: (formData: any, fieldName: string, file: any) => {
+    formData.append(String(fieldName), {
+      uri: file.uri,
+      name: file.name || `upload-${Date.now()}`,
+      type: file.type || 'application/octet-stream',
+    } as any);
+  },
+});
 
 const authLink = setContext(async (_, { headers }) => {
   const token = await tokenStorage.getAccessToken();
   return {
     headers: {
       ...headers,
+      'apollo-require-preflight': 'true',
       authorization: token ? `Bearer ${token}` : '',
     },
   };

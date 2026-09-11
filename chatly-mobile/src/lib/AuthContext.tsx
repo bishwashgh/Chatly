@@ -64,9 +64,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [verifyMutation, applyPayload]);
 
   const logout = useCallback(async () => {
-    await tokenStorage.clear();
-    try { await signOutGoogle(); } catch { /* Google may not be configured for password accounts. */ }
-    await client.clearStore();
+    try {
+      await tokenStorage.clear();
+    } catch (e) {
+      console.warn('tokenStorage.clear error:', e);
+    }
+    try {
+      await signOutGoogle();
+    } catch {
+      /* Google may not be configured for password accounts. */
+    }
+    try {
+      await client.clearStore();
+    } catch {
+      try {
+        await client.resetStore();
+      } catch {}
+    }
     setCurrentUser(null);
   }, [client]);
 

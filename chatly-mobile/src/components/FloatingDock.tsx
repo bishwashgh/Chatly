@@ -17,21 +17,36 @@ const TABS: { key: DockTab; label: string; Icon: any }[] = [
 export function FloatingDock({
   active,
   navigation,
+  onTabChange,
   unreadCount = 0,
 }: {
   active: DockTab;
-  navigation: any;
+  navigation?: any;
+  onTabChange?: (tab: DockTab) => void;
   unreadCount?: number;
 }) {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
 
+  const handlePress = (key: DockTab) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (onTabChange) {
+      onTabChange(key);
+    } else if (navigation) {
+      navigation.navigate(key === 'chats' ? 'Conversations' : 'Friends');
+    }
+  };
+
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+    <View style={styles.container} pointerEvents="box-none">
       <BlurView
-        intensity={85}
+        intensity={95}
         tint={isDark ? 'dark' : 'light'}
-        style={[styles.dockBar, isDark && styles.dockBarDark]}
+        style={[
+          styles.dockBar,
+          { paddingBottom: Math.max(insets.bottom, 10) },
+          isDark && styles.dockBarDark,
+        ]}
       >
         <View style={styles.tabsRow}>
           {TABS.map(({ key, label, Icon }) => {
@@ -47,16 +62,13 @@ export function FloatingDock({
                   isActive && (isDark ? styles.tabButtonActiveDark : styles.tabButtonActive),
                   pressed && styles.pressed,
                 ]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  navigation.navigate(key === 'chats' ? 'Conversations' : 'Friends');
-                }}
+                onPress={() => handlePress(key)}
               >
                 <View style={styles.iconWrap}>
                   <Icon
                     size={22}
                     color={isActive ? (isDark ? '#72FE88' : colors.primary) : (isDark ? '#8E9A8C' : '#6D7B6B')}
-                    strokeWidth={isActive ? 2.4 : 1.8}
+                    strokeWidth={isActive ? 2.5 : 1.9}
                   />
                   {key === 'chats' && unreadCount > 0 && (
                     <View style={styles.badge}>
@@ -90,37 +102,44 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   dockBar: {
-    backgroundColor: 'rgba(250, 249, 254, 0.92)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(26, 27, 31, 0.06)',
+    backgroundColor: 'rgba(250, 249, 254, 0.90)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0, 0, 0, 0.08)',
     paddingTop: 8,
-    paddingBottom: 4,
-    ...shadows.dock,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 10,
   },
   dockBarDark: {
-    backgroundColor: 'rgba(18, 19, 22, 0.94)',
+    backgroundColor: 'rgba(18, 19, 22, 0.92)',
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
   tabsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
   tabButton: {
-    width: 86,
-    height: 54,
-    borderRadius: radii.md,
+    width: 96,
+    height: 50,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 2,
     backgroundColor: 'transparent',
   },
   tabButtonActive: {
-    backgroundColor: 'rgba(114, 254, 136, 0.22)',
+    backgroundColor: 'rgba(114, 254, 136, 0.26)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 110, 40, 0.12)',
   },
   tabButtonActiveDark: {
-    backgroundColor: 'rgba(114, 254, 136, 0.16)',
+    backgroundColor: 'rgba(114, 254, 136, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(114, 254, 136, 0.20)',
   },
   iconWrap: {
     position: 'relative',

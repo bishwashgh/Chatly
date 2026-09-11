@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LoginScreen } from '../screens/LoginScreen';
 import { SignInScreen, SignUpScreen, OtpScreen, ForgotPasswordScreen, ResetPasswordScreen } from '../screens/AuthFlowScreens';
+import { MainScreen } from '../screens/MainScreen';
 import { ConversationsScreen } from '../screens/ConversationsScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { ChatScreen } from '../screens/ChatScreen';
@@ -18,8 +19,9 @@ export type RootStackParamList = {
   Otp: { challengeId: string; destination: string; mode: 'signup' };
   ForgotPassword: undefined;
   ResetPassword: { email: string; challengeId: string };
-  Conversations: undefined;
-  Friends: undefined;
+  Main?: { initialTab?: 'chats' | 'friends' };
+  Conversations?: { initialTab?: 'chats' | 'friends' };
+  Friends?: { initialTab?: 'chats' | 'friends' };
   CallLog: undefined;
   Settings: undefined;
   Profile: undefined;
@@ -62,8 +64,9 @@ export function RootNavigator() {
             contentStyle: { backgroundColor: colors.bg },
           }}
         >
-          <Stack.Screen name="Conversations" component={ConversationsScreen} />
-          <Stack.Screen name="Friends" component={FriendsScreen} />
+          <Stack.Screen name="Main" component={MainScreen} />
+          <Stack.Screen name="Conversations" component={MainScreen} />
+          <Stack.Screen name="Friends" component={MainScreen} />
           <Stack.Screen name="CallLog" component={CallLogScreen} />
           <Stack.Screen name="Settings" component={ProfileScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />

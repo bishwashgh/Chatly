@@ -28,6 +28,7 @@ import { UPLOAD_MESSAGE_MEDIA } from '../graphql/messages.gql';
 import { useAuth } from '../lib/AuthContext';
 import { Avatar } from './Avatar';
 import { colors, radii, shadows, spacing } from '../lib/theme';
+import { ReactNativeFile } from 'apollo-upload-client';
 import { useTheme } from '../lib/ThemeContext';
 
 type ProfileModalProps = { visible: boolean; onClose: () => void; navigation?: any };
@@ -75,10 +76,13 @@ export function ProfileModal({ visible, onClose, navigation }: ProfileModalProps
     const asset = result.assets[0];
     setUploading(true);
     try {
+      const file = new ReactNativeFile({
+        uri: asset.uri,
+        name: asset.fileName ?? `avatar-${Date.now()}.jpg`,
+        type: asset.mimeType ?? 'image/jpeg',
+      });
       const { data: uploadData } = await uploadMedia({
-        variables: {
-          file: { uri: asset.uri, name: asset.fileName ?? `avatar-${Date.now()}.jpg`, type: asset.mimeType ?? 'image/jpeg' },
-        },
+        variables: { file },
       });
       const url = uploadData?.uploadMessageMedia;
       if (!url) throw new Error('No upload URL returned');

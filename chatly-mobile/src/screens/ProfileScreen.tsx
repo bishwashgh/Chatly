@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import {
   Bell,
   ChevronLeft,
@@ -41,6 +42,7 @@ export function ProfileScreen({ navigation }: any) {
   const [pushNotifications, setPushNotifications] = useState(true);
 
   const handleLogout = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert('Log out of Chatly?', 'You can sign back in anytime with your account credentials.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log out', style: 'destructive', onPress: logout },
@@ -76,7 +78,22 @@ export function ProfileScreen({ navigation }: any) {
         </Pressable>
 
         <View style={styles.headerProfileBadge}>
-          <User size={18} color="#FFFFFF" strokeWidth={2.2} />
+          {currentUser?.avatarUrl ? (
+            <Image
+              source={{ uri: currentUser.avatarUrl }}
+              style={styles.headerBadgeImage}
+              contentFit="cover"
+            />
+          ) : (
+            <Text style={styles.headerBadgeText}>
+              {(currentUser?.name || currentUser?.username || 'U')
+                .split(' ')
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase()}
+            </Text>
+          )}
         </View>
       </View>
 
@@ -302,13 +319,23 @@ export function ProfileScreen({ navigation }: any) {
         {/* Log Out Button */}
         <Pressable
           style={({ pressed }) => [
-            styles.logoutBtn,
+            styles.logoutCard,
+            isDark && styles.logoutCardDark,
             pressed && styles.pressed,
           ]}
           onPress={handleLogout}
         >
-          <LogOut size={18} color="#93000A" />
-          <Text style={styles.logoutBtnText}>Log Out</Text>
+          <View style={styles.logoutLeft}>
+            <View style={[styles.logoutIconBadge, isDark && styles.logoutIconBadgeDark]}>
+              <LogOut size={18} color="#BA1A1A" strokeWidth={2.4} />
+            </View>
+            <View>
+              <Text style={styles.logoutTitle}>Log Out</Text>
+              <Text style={[styles.logoutSubtitle, isDark && styles.textSecondaryDark]}>
+                Sign out of this device
+              </Text>
+            </View>
+          </View>
         </Pressable>
 
         {/* Version Info */}
@@ -343,12 +370,24 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   headerProfileBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  headerBadgeImage: {
+    width: '100%',
+    height: '100%',
+  },
+  headerBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   scrollContent: {
     paddingHorizontal: spacing.md,
@@ -493,21 +532,54 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  logoutBtn: {
+  logoutCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#FFDAD6',
-    borderRadius: 16,
-    height: 50,
-    marginTop: spacing.xs,
+    backgroundColor: 'rgba(255, 218, 214, 0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(186, 26, 26, 0.16)',
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
+    shadowColor: '#BA1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  logoutBtnText: {
-    color: '#93000A',
-    fontSize: 15,
+  logoutCardDark: {
+    backgroundColor: 'rgba(186, 26, 26, 0.14)',
+    borderColor: 'rgba(255, 180, 171, 0.22)',
+  },
+  logoutLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  logoutIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(186, 26, 26, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutIconBadgeDark: {
+    backgroundColor: 'rgba(255, 180, 171, 0.15)',
+  },
+  logoutTitle: {
+    fontSize: 16,
     fontWeight: '700',
+    color: '#BA1A1A',
+    letterSpacing: -0.2,
+  },
+  logoutSubtitle: {
+    fontSize: 12,
+    color: '#6D7B6B',
+    marginTop: 2,
   },
   versionText: {
     fontSize: 12,
