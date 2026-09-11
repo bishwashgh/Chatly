@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { Swipeable } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
@@ -403,16 +404,33 @@ export function ChatScreen({
     [peerId, calling, peerName, peerAvatarUrl, startCall, presentCall],
   );
 
-  const openAttachment = useCallback(async (url: string) => {
+  const downloadAttachment = useCallback(async (url: string, fileName?: string) => {
     try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) throw new Error('No app can open this file');
-      await Linking.openURL(url);
+      const baseDirectory = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
+      if (!baseDirectory) throw new Error('Device storage is unavailable');
+      const safeName = (fileName || `chatly-${Date.now()}`).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const extension = safeName.includes('.') ? '' : '.bin';
+      const localUri = `${baseDirectory}${safeName}${extension}`;
+      const result = await FileSystem.downloadAsync(url, localUri);
+      if (result.status !== 200) throw new Error(`Download failed (${result.status})`);
+
+      // Android can open/share a file through its content provider URI. The
+      // downloaded file remains available in the app's local document storage.
+      const canOpen = await Linking.canOpenURL(result.uri);
+      if (canOpen) {
+        await Linking.openURL(result.uri);
+      } else {
+        Alert.alert('Downloaded', `${safeName} was saved to Chatly storage.`);
+      }
     } catch (error) {
-      console.error('Opening attachment failed:', error);
-      Alert.alert('Unable to open file', 'The attachment could not be downloaded or opened on this device.');
+      console.error('Attachment download failed:', error);
+      Alert.alert('Download failed', 'The attachment could not be downloaded. Please try again.');
     }
   }, []);
+
+  const downloadImage = useCallback(async (url: string) => {
+    await downloadAttachment(url, `chatly-photo-${Date.now()}.jpg`);
+  }, [downloadAttachment]);
 
   const isImageAttachment = (item: any) =>
     typeof item.mediaUrl === 'string' &&
@@ -421,10 +439,16 @@ export function ChatScreen({
   const renderMessageContent = (item: any) => {
     if (item.mediaUrl && item.messageType === 'FILE' && isImageAttachment(item)) {
       return (
-        <Pressable onPress={() => setLightbox(item.mediaUrl)}>
-          <Image source={{ uri: item.mediaUrl }} style={styles.mediaImageFull} contentFit="contain" transition={150} />
+        <View>
+          <Pressable onPress={() => setLightbox(item.mediaUrl)}>
+            <Image source={{ uri: item.mediaUrl }} style={styles.mediaImageFull} contentFit="contain" transition={150} />
+          </Pressable>
           {!!item.content && <Text style={styles.attachmentName}>{item.content}</Text>}
-        </Pressable>
+          <Pressable style={styles.downloadMediaButton} onPress={() => downloadImage(item.mediaUrl)}>
+            <Download size={15} color="#fff" />
+            <Text style={styles.downloadMediaText}>Download photo</Text>
+          </Pressable>
+        </View>
       );
     }
 
@@ -433,14 +457,20 @@ export function ChatScreen({
         return <VoiceMessagePlayer uri={item.mediaUrl} />;
       case 'IMAGE':
         return (
-          <Pressable onPress={() => setLightbox(item.mediaUrl)}>
-            <Image
-              source={{ uri: item.mediaUrl }}
-              style={styles.mediaImage}
-              contentFit="cover"
-              transition={150}
-            />
-          </Pressable>
+          <View>
+            <Pressable onPress={() => setLightbox(item.mediaUrl)}>
+              <Image
+                source={{ uri: item.mediaUrl }}
+                style={styles.mediaImage}
+                contentFit="cover"
+                transition={150}
+              />
+            </Pressable>
+            <Pressable style={styles.downloadMediaButton} onPress={() => downloadImage(item.mediaUrl)}>
+              <Download size={15} color="#fff" />
+              <Text style={styles.downloadMediaText}>Download photo</Text>
+            </Pressable>
+          </View>
         );
       case 'VIDEO':
         return (
@@ -454,7 +484,7 @@ export function ChatScreen({
         );
       case 'FILE':
         return item.mediaUrl ? (
-          <Pressable style={styles.fileAttachment} onPress={() => openAttachment(item.mediaUrl)}>
+          <Pressable style={styles.fileAttachment} onPress={() => downloadAttachment(item.mediaUrl, item.content)}>
             <View style={styles.fileIcon}><FileText size={20} color={colors.primary} /></View>
             <View style={styles.fileTextWrap}>
               <Text style={styles.fileName} numberOfLines={2}>{item.content || 'Shared file'}</Text>
@@ -931,6 +961,8 @@ const styles = StyleSheet.create({
   mediaImage: { width: 240, maxWidth: '100%', height: 240, borderRadius: radii.md, marginBottom: 4 },
   mediaImageFull: { width: 260, maxWidth: '100%', height: 300, borderRadius: radii.md, backgroundColor: 'rgba(0,0,0,0.06)' },
   attachmentName: { color: '#6D7B6B', fontSize: 11, marginTop: 5 },
+  downloadMediaButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7, paddingHorizontal: 10, paddingVertical: 7, borderRadius: radii.full, backgroundColor: colors.primary },
+  downloadMediaText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   fileAttachment: { flexDirection: 'row', alignItems: 'center', gap: 9, minWidth: 210, maxWidth: 280, paddingVertical: 2 },
   fileIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(0,110,40,0.10)', alignItems: 'center', justifyContent: 'center' },
   fileTextWrap: { flex: 1 },

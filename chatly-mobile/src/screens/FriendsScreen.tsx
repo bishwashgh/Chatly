@@ -697,15 +697,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     marginHorizontal: 4,
     marginTop: 4,
-    paddingVertical: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
   },
   friendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 15,
     gap: 12,
-    minHeight: 84,
+    minHeight: 82,
+    borderRadius: radii.md,
   },
   friendAvatarWrap: {
     position: 'relative',
@@ -804,8 +806,8 @@ const styles = StyleSheet.create({
   rowDivider: {
     height: 1,
     backgroundColor: '#E9E7ED',
-    marginLeft: 84,
-    marginRight: spacing.lg,
+    marginLeft: 76,
+    marginRight: spacing.md,
   },
   dividerDark: {
     backgroundColor: '#28292E',
@@ -826,6 +828,7 @@ const styles = StyleSheet.create({
   },
   cardPressed: {
     backgroundColor: 'rgba(0, 110, 40, 0.06)',
+    borderRadius: radii.md,
   },
   textDark: {
     color: '#F1F0F5',
