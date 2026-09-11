@@ -1,5 +1,6 @@
 module.exports = function (api) {
-  api.cache(true);
+  // Do not persist an old transform after EXPO_PUBLIC_* values change.
+  api.cache.never();
   return {
     presets: [
       ["babel-preset-expo", { jsxImportSource: "nativewind" }],

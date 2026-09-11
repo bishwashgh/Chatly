@@ -7,9 +7,46 @@ import { createClient } from 'graphql-ws';
 import { createUploadLink, ReactNativeFile } from 'apollo-upload-client';
 import { tokenStorage } from './secureStore';
 
-const env = process.env as Record<string, string | undefined>;
-const HTTP_URL = env.EXPO_PUBLIC_API_HTTP_URL ?? 'http://localhost:4000/graphql';
-const WS_URL = env.EXPO_PUBLIC_API_WS_URL ?? 'ws://localhost:4000/graphql';
+// Expo public variables are baked into the bundle. Keep these as direct
+// references so Expo can inline the current values during bundling.
+const configuredHttpUrl = process.env.EXPO_PUBLIC_API_HTTP_URL;
+const configuredWsUrl = process.env.EXPO_PUBLIC_API_WS_URL;
+
+// A stale or partially edited
+// value must not silently take down every HTTP request and subscription.
+const DEFAULT_API_HTTP_URL = 'https://chatly-backend-6qxq.onrender.com/graphql';
+const DEFAULT_API_WS_URL = 'wss://chatly-backend-6qxq.onrender.com/graphql';
+
+function resolveEndpoint(
+  raw: string | undefined,
+  fallback: string,
+  protocol: 'http' | 'ws',
+): string {
+  const value = raw?.trim();
+  const allowedProtocols = protocol === 'http' ? ['http://', 'https://'] : ['ws://', 'wss://'];
+  const valid = value &&
+    allowedProtocols.some((prefix) => value.startsWith(prefix)) &&
+    !/[<>\s]/.test(value) &&
+    !value.includes('your-') &&
+    !value.includes('instance.livekit.cloud') &&
+    !allowedProtocols.some((prefix) => value.slice(prefix.length).includes('//'));
+
+  if (!valid) {
+    if (value) console.warn(`[Apollo] Invalid ${protocol.toUpperCase()} endpoint; using configured fallback`);
+    return fallback;
+  }
+
+  const withoutTrailingSlashes = value.replace(/\/+$/, '');
+  return withoutTrailingSlashes.endsWith('/graphql') ? withoutTrailingSlashes : `${withoutTrailingSlashes}/graphql`;
+}
+
+const HTTP_URL = resolveEndpoint(configuredHttpUrl, DEFAULT_API_HTTP_URL, 'http');
+const WS_URL = resolveEndpoint(configuredWsUrl, DEFAULT_API_WS_URL, 'ws');
+console.log('[Apollo] GraphQL endpoints configured:', HTTP_URL, WS_URL);
+
+export function getGraphQLEndpoints() {
+  return { http: HTTP_URL, ws: WS_URL };
+}
 
 /**
  * React Native represents picked files as plain { uri, name, type } objects
@@ -58,9 +95,20 @@ const authLink = setContext(async (_, { headers }) => {
 const wsLink = new GraphQLWsLink(
   createClient({
     url: WS_URL,
+    lazy: true,
+    retryAttempts: Infinity,
+    shouldRetry: () => true,
+    retryWait: async (retries) => {
+      await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** retries, 10000)));
+    },
     connectionParams: async () => {
       const token = await tokenStorage.getAccessToken();
       return { authorization: token ? `Bearer ${token}` : '' };
+    },
+    on: {
+      connected: () => console.log('[Apollo] GraphQL subscription connected'),
+      closed: (event) => console.warn('[Apollo] GraphQL subscription closed', event?.code),
+      error: (error) => console.warn('[Apollo] GraphQL subscription error', error),
     },
   }),
 );

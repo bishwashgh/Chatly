@@ -42,10 +42,14 @@ export class ReactionsService {
       include: { sender: true, reactions: { include: { user: true } } },
     });
 
-    await this.pubSub.publish(MESSAGE_REACTION_UPDATED, {
-      messageReactionUpdated: message,
-      conversationId: message?.conversationId,
-    });
+    try {
+      await this.pubSub.publish(MESSAGE_REACTION_UPDATED, {
+        messageReactionUpdated: message,
+        conversationId: message?.conversationId,
+      });
+    } catch (error) {
+      console.warn('Could not publish messageReactionUpdated event:', error);
+    }
 
     return message;
   }

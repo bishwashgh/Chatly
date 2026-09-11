@@ -175,10 +175,16 @@ export function ChatScreen({
   const handleDraftChange = useCallback(
     (text: string) => {
       setDraft(text);
-      setTyping({ variables: { conversationId, isTyping: true } });
+      // Typing is a best-effort signal. Do not let a sleeping API or a lost
+      // subscription transport break text entry.
+      setTyping({ variables: { conversationId, isTyping: true } }).catch((error) => {
+        console.warn('Typing indicator failed:', error);
+      });
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
-        setTyping({ variables: { conversationId, isTyping: false } });
+        setTyping({ variables: { conversationId, isTyping: false } }).catch((error) => {
+          console.warn('Typing stop failed:', error);
+        });
       }, TYPING_DEBOUNCE_MS);
     },
     [conversationId, setTyping],
@@ -189,16 +195,21 @@ export function ChatScreen({
     await Haptics.selectionAsync();
     const content = replyingTo ? `↪ ${replyingTo.content ?? 'Message'}\n${draft.trim()}` : draft.trim();
     try {
-      await sendMessage({ variables: { input: { conversationId, content, messageType: 'TEXT' } } });
+      await sendMessage({
+        variables: { input: { conversationId, content, messageType: 'TEXT' } },
+      });
+      void refetch().catch((error) => console.warn('Message refresh failed:', error));
       setDraft('');
       setReplyingTo(null);
-      setTyping({ variables: { conversationId, isTyping: false } });
+      setTyping({ variables: { conversationId, isTyping: false } }).catch((error) => {
+        console.warn('Typing stop failed:', error);
+      });
     } catch (e) {
       console.error('Send message failed:', e);
       const msg = e instanceof Error ? e.message.replace(/^GraphQL error:\s*/, '') : 'Unknown error';
       Alert.alert('Message not sent', msg || 'Check your connection and try again.');
     }
-  }, [draft, replyingTo, conversationId, sendMessage, setTyping]);
+  }, [draft, replyingTo, conversationId, sendMessage, setTyping, refetch]);
 
   const handleVoiceSend = useCallback(async () => {
     try {
@@ -213,12 +224,15 @@ export function ChatScreen({
         variables: { file },
       });
       const mediaUrl = uploadData?.uploadMessageMedia ?? uri;
-      await sendMessage({ variables: { input: { conversationId, mediaUrl, messageType: 'AUDIO' } } });
+      await sendMessage({
+        variables: { input: { conversationId, mediaUrl, messageType: 'AUDIO' } },
+      });
+      void refetch().catch((error) => console.warn('Voice message refresh failed:', error));
     } catch (e) {
       console.error('Voice send failed:', e);
       Alert.alert('Voice message failed', 'Could not send voice note. Please try again.');
     }
-  }, [stopRecording, conversationId, sendMessage, uploadMessageMedia]);
+  }, [stopRecording, conversationId, sendMessage, uploadMessageMedia, refetch]);
 
   const handlePickMedia = useCallback(async () => {
     try {
@@ -241,11 +255,12 @@ export function ChatScreen({
       await sendMessage({
         variables: { input: { conversationId, mediaUrl, messageType: isVideo ? 'VIDEO' : 'IMAGE' } },
       });
+      void refetch().catch((error) => console.warn('Media message refresh failed:', error));
     } catch (e) {
       console.error('Media upload failed:', e);
       Alert.alert('Upload failed', 'Could not upload media. Please try again.');
     }
-  }, [conversationId, sendMessage, uploadMessageMedia]);
+  }, [conversationId, sendMessage, uploadMessageMedia, refetch]);
 
   const handleAttachment = useCallback(async (action: AttachmentAction, asset?: any) => {
     setAttachmentVisible(false);
@@ -264,7 +279,10 @@ export function ChatScreen({
           type: isVideo ? 'video/mp4' : 'image/jpeg',
         });
         const { data: uploadData } = await uploadMessageMedia({ variables: { file } });
-        await sendMessage({ variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? picked.uri, messageType: isVideo ? 'VIDEO' : 'IMAGE' } } });
+        await sendMessage({
+          variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? picked.uri, messageType: isVideo ? 'VIDEO' : 'IMAGE' } },
+        });
+        void refetch().catch((error) => console.warn('Camera message refresh failed:', error));
       } catch (e) {
         console.error('Camera upload failed:', e);
         Alert.alert('Camera upload failed', 'Could not send captured media.');
@@ -279,13 +297,16 @@ export function ChatScreen({
           type: asset.mimeType ?? 'application/octet-stream',
         });
         const { data: uploadData } = await uploadMessageMedia({ variables: { file } });
-        await sendMessage({ variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? asset.uri, content: asset.name, messageType: 'FILE' } } });
+        await sendMessage({
+          variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? asset.uri, content: asset.name, messageType: 'FILE' } },
+        });
+        void refetch().catch((error) => console.warn('File message refresh failed:', error));
       } catch (e) {
         console.error('Document upload failed:', e);
         Alert.alert('File upload failed', 'Could not send file. Please try again.');
       }
     }
-  }, [conversationId, handlePickMedia, sendMessage, uploadMessageMedia]);
+  }, [conversationId, handlePickMedia, sendMessage, uploadMessageMedia, refetch]);
 
   const handleReact = useCallback(
     (messageId: string, emoji: string) => {
@@ -311,7 +332,7 @@ export function ChatScreen({
       try {
         const { data: callData } = await startCall({ variables: { recipientId: peerId, callType } });
         const session = callData?.startCall;
-        if (!session) return;
+        if (!session) throw new Error('The call session was not created');
         presentCall({
           sessionId: session.id,
           roomToken: session.roomToken,
@@ -320,6 +341,10 @@ export function ChatScreen({
           peer: { id: peerId, name: peerName ?? 'Call', avatarUrl: peerAvatarUrl },
           isOutgoing: true,
         });
+      } catch (error) {
+        console.error('Call start failed:', error);
+        const message = error instanceof Error ? error.message : 'Check your connection and try again.';
+        Alert.alert('Call failed', message);
       } finally {
         setCalling(false);
       }

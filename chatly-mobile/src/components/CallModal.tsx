@@ -17,19 +17,29 @@ import { Track } from 'livekit-client';
 import { INCOMING_CALL_SUBSCRIPTION, END_CALL, UPDATE_CALL_STATUS } from '../graphql/calls.gql';
 import { useCall, ActiveCall } from '../lib/CallContext';
 
-const env = process.env as Record<string, string | undefined>;
-// Validate and sanitize the LiveKit URL — Metro cache may serve stale/corrupted values
+const configuredLiveKitUrl = process.env.EXPO_PUBLIC_LIVEKIT_URL;
+const DEFAULT_LIVEKIT_URL = 'wss://chatly-q41rks5z.livekit.cloud';
+
+// LiveKit expects the cloud websocket origin only. Reject stale values such as
+// `wss://your-livekit-wss//...` instead of passing them to the native SDK.
 function resolveLiveKitUrl(): string {
-  const raw = env.EXPO_PUBLIC_LIVEKIT_URL ?? '';
-  // Detect corrupted URL patterns (double protocol, placeholder text, double slashes in host)
-  if (!raw || raw.includes('your-livekit') || /wss?:\/\/.*\/\//.test(raw)) {
-    console.warn('[CallModal] LiveKit URL invalid or corrupted, using fallback:', raw);
-    return 'wss://chatly-q41rks5z.livekit.cloud';
+  const raw = configuredLiveKitUrl?.trim() ?? '';
+  const valid =
+    raw.startsWith('wss://') &&
+    !/[<>\s]/.test(raw) &&
+    !raw.includes('your-livekit') &&
+    !raw.slice('wss://'.length).includes('//') &&
+    !raw.includes('/rtc/') &&
+    !raw.includes('?');
+
+  if (!valid) {
+    console.warn('[CallModal] Invalid LiveKit URL; using fallback');
+    return DEFAULT_LIVEKIT_URL;
   }
-  return raw;
+  return raw.replace(/\/+$/, '');
 }
 const LIVEKIT_URL = resolveLiveKitUrl();
-console.log('[CallModal] LiveKit URL resolved to:', LIVEKIT_URL);
+console.log('[CallModal] LiveKit URL configured:', LIVEKIT_URL);
 
 type CallModalProps = {
   currentUserId: string;
@@ -263,10 +273,13 @@ export function CallModal({ currentUserId }: CallModalProps) {
     try {
       await updateCallStatus({ variables: { sessionId: activeCall.sessionId, status: phase === 'incoming' ? 'DECLINED' : 'ENDED' } });
       await endCall({ variables: { sessionId: activeCall.sessionId } });
-    } catch {
-      // ignore — closing locally regardless
+    } catch (error) {
+      console.warn('[CallModal] Failed to update call status:', error);
+    } finally {
+      // Always close the native room/modal locally, even if the API is waking up
+      // or the network is temporarily unavailable.
+      dismissCall();
     }
-    dismissCall();
   };
 
   const callTypeLabel = activeCall.callType === 'VIDEO' ? 'Video call' : 'Audio call';
@@ -289,8 +302,13 @@ export function CallModal({ currentUserId }: CallModalProps) {
               </Pressable>
               <PulsingAcceptBtn
                 onPress={async () => {
-                  await updateCallStatus({ variables: { sessionId: activeCall.sessionId, status: 'ACCEPTED' } });
-                  setPhase('connected');
+                  try {
+                    await updateCallStatus({ variables: { sessionId: activeCall.sessionId, status: 'ACCEPTED' } });
+                    setPhase('connected');
+                  } catch (error) {
+                    console.warn('[CallModal] Failed to accept call:', error);
+                    dismissCall();
+                  }
                 }}
               />
             </View>

@@ -61,10 +61,16 @@ export class MessagesService {
       include: { sender: true, reactions: { include: { user: true } } },
     });
 
-    await this.pubSub.publish(MESSAGE_ADDED, {
-      messageAdded: message,
-      conversationId,
-    });
+    try {
+      await this.pubSub.publish(MESSAGE_ADDED, {
+        messageAdded: message,
+        conversationId,
+      });
+    } catch (error) {
+      // Realtime delivery is best-effort. Redis outages must not make a
+      // successfully persisted message look like a failed send.
+      console.warn('Could not publish messageAdded event:', error);
+    }
 
     return message;
   }
@@ -81,10 +87,15 @@ export class MessagesService {
 
   async setTyping(conversationId: string, userId: string, isTyping: boolean) {
     await this.assertParticipant(userId, conversationId);
-    await this.pubSub.publish(USER_TYPING_STATUS, {
-      userTypingStatus: { conversationId, userId, isTyping },
-      conversationId,
-    });
+    try {
+      await this.pubSub.publish(USER_TYPING_STATUS, {
+        userTypingStatus: { conversationId, userId, isTyping },
+        conversationId,
+      });
+    } catch (error) {
+      // Typing indicators are transient and should never block the editor.
+      console.warn('Could not publish userTypingStatus event:', error);
+    }
     return true;
   }
 
@@ -104,15 +115,19 @@ export class MessagesService {
       data: { isRead: true, isDelivered: true },
     });
 
-    await this.pubSub.publish(MESSAGE_STATUS_UPDATED, {
-      messageStatusUpdated: {
-        messageId: message.id,
+    try {
+      await this.pubSub.publish(MESSAGE_STATUS_UPDATED, {
+        messageStatusUpdated: {
+          messageId: message.id,
+          conversationId,
+          isDelivered: message.isDelivered,
+          isRead: message.isRead,
+        },
         conversationId,
-        isDelivered: message.isDelivered,
-        isRead: message.isRead,
-      },
-      conversationId,
-    });
+      });
+    } catch (error) {
+      console.warn('Could not publish messageStatusUpdated event:', error);
+    }
 
     return message;
   }
