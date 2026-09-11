@@ -351,11 +351,19 @@ export function ChatScreen({
 
   const handleReact = useCallback(
     (messageId: string, emoji: string) => {
-      toggleReaction({ variables: { messageId, emojiId: emoji } });
+      toggleReaction({ variables: { messageId, emojiId: emoji } }).catch((error) => {
+        console.warn('Reaction failed:', error);
+      });
       setActiveMessageId(null);
     },
     [toggleReaction],
   );
+
+  const handleMenuReaction = useCallback((emoji: string) => {
+    if (!contextMessage) return;
+    handleReact(contextMessage.id, emoji);
+    setContextMessage(null);
+  }, [contextMessage, handleReact]);
 
   const handleMenuAction = useCallback((action: MessageMenuAction) => {
     const message = contextMessage;
@@ -363,7 +371,9 @@ export function ChatScreen({
     if (!message) return;
     if (action === 'reply') setReplyingTo(message);
     if (action === 'delete') deleteMessage({ variables: { messageId: message.id }, refetchQueries: [{ query: MESSAGES_QUERY, variables: { conversationId } }] });
-    if (action === 'react') handleReact(message.id, '❤️');
+    if (action === 'forward') {
+      Alert.alert('Forward message', 'Forwarding messages will be available soon.');
+    }
   }, [contextMessage, deleteMessage, conversationId, handleReact]);
 
   const handleCall = useCallback(
@@ -698,7 +708,14 @@ export function ChatScreen({
       {replyingTo && <View style={styles.replyBar}><Reply size={15} color={colors.primary} /><Text style={styles.replyText} numberOfLines={1}>Replying to {replyingTo.sender?.name ?? 'message'}: {replyingTo.content ?? 'attachment'}</Text><Pressable onPress={() => setReplyingTo(null)}><Text style={styles.replyClose}>×</Text></Pressable></View>}
 
       <AttachmentSheet visible={attachmentVisible} onClose={() => setAttachmentVisible(false)} onAction={handleAttachment} />
-      <MessageContextMenu visible={!!contextMessage} message={contextMessage} mine={contextMessage?.sender?.id === currentUserId} onClose={() => setContextMessage(null)} onAction={handleMenuAction} />
+      <MessageContextMenu
+        visible={!!contextMessage}
+        message={contextMessage}
+        mine={contextMessage?.sender?.id === currentUserId}
+        onClose={() => setContextMessage(null)}
+        onAction={handleMenuAction}
+        onReact={handleMenuReaction}
+      />
 
       <EmojiPicker
         visible={pickerVisible}
