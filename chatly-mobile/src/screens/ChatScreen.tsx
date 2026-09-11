@@ -69,6 +69,14 @@ import { ReactNativeFile } from 'apollo-upload-client';
 const QUICK_REACTIONS = [String.fromCodePoint(0x2764, 0xFE0F), String.fromCodePoint(0x1F602), String.fromCodePoint(0x1F44D), String.fromCodePoint(0x1F62E), String.fromCodePoint(0x1F622)];
 const TYPING_DEBOUNCE_MS = 2500;
 
+function requireUploadedMediaUrl(data: any): string {
+  const url = data?.uploadMessageMedia;
+  if (typeof url !== 'string' || !url.trim()) {
+    throw new Error('The media upload completed without returning a file URL');
+  }
+  return url;
+}
+
 function formatTime(iso: string) {
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -223,7 +231,7 @@ export function ChatScreen({
       const { data: uploadData } = await uploadMessageMedia({
         variables: { file },
       });
-      const mediaUrl = uploadData?.uploadMessageMedia ?? uri;
+      const mediaUrl = requireUploadedMediaUrl(uploadData);
       await sendMessage({
         variables: { input: { conversationId, mediaUrl, messageType: 'AUDIO' } },
       });
@@ -251,7 +259,7 @@ export function ChatScreen({
       const { data: uploadData } = await uploadMessageMedia({
         variables: { file },
       });
-      const mediaUrl = uploadData?.uploadMessageMedia ?? asset.uri;
+      const mediaUrl = requireUploadedMediaUrl(uploadData);
       await sendMessage({
         variables: { input: { conversationId, mediaUrl, messageType: isVideo ? 'VIDEO' : 'IMAGE' } },
       });
@@ -280,7 +288,7 @@ export function ChatScreen({
         });
         const { data: uploadData } = await uploadMessageMedia({ variables: { file } });
         await sendMessage({
-          variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? picked.uri, messageType: isVideo ? 'VIDEO' : 'IMAGE' } },
+          variables: { input: { conversationId, mediaUrl: requireUploadedMediaUrl(uploadData), messageType: isVideo ? 'VIDEO' : 'IMAGE' } },
         });
         void refetch().catch((error) => console.warn('Camera message refresh failed:', error));
       } catch (e) {
@@ -289,21 +297,37 @@ export function ChatScreen({
       }
       return;
     }
-    if (action === 'document' && asset?.uri) {
+    if (action === 'document') {
+      if (!asset?.uri || typeof asset.uri !== 'string') {
+        Alert.alert('File unavailable', 'The selected document could not be read. Please choose it again.');
+        return;
+      }
       try {
+        const fileName = typeof asset.name === 'string' && asset.name.trim()
+          ? asset.name.trim()
+          : `file-${Date.now()}`;
         const file = new ReactNativeFile({
           uri: asset.uri,
-          name: asset.name ?? `file-${Date.now()}`,
+          name: fileName,
           type: asset.mimeType ?? 'application/octet-stream',
         });
         const { data: uploadData } = await uploadMessageMedia({ variables: { file } });
+        const mediaUrl = requireUploadedMediaUrl(uploadData);
         await sendMessage({
-          variables: { input: { conversationId, mediaUrl: uploadData?.uploadMessageMedia ?? asset.uri, content: asset.name, messageType: 'FILE' } },
+          variables: {
+            input: {
+              conversationId,
+              mediaUrl,
+              content: fileName,
+              messageType: 'FILE',
+            },
+          },
         });
         void refetch().catch((error) => console.warn('File message refresh failed:', error));
       } catch (e) {
         console.error('Document upload failed:', e);
-        Alert.alert('File upload failed', 'Could not send file. Please try again.');
+        const message = e instanceof Error ? e.message : 'Could not upload the selected file.';
+        Alert.alert('File upload failed', message);
       }
     }
   }, [conversationId, handlePickMedia, sendMessage, uploadMessageMedia, refetch]);
