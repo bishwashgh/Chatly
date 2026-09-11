@@ -19,6 +19,7 @@ import {
   QrCode,
   User,
   ChevronRight,
+  MessageCircle,
   Zap,
 } from 'lucide-react-native';
 import { useQuery, useLazyQuery, useMutation } from '@apollo/client';
@@ -317,7 +318,7 @@ export function FriendsScreen({
             </Text>
           </View>
 
-          <View style={[styles.groupedCard, isDark && styles.cardDark]}>
+          <View style={[styles.groupedCard, styles.connectionsCard, isDark && styles.cardDark]}>
             {loading ? (
               <View style={styles.loadingBox}>
                 <ActivityIndicator size="small" color={colors.primary} />
@@ -334,24 +335,31 @@ export function FriendsScreen({
                   <Pressable
                     style={({ pressed }) => [styles.friendRow, pressed && styles.cardPressed]}
                     onPress={() => openChat(friend)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open chat with ${friend.name}`}
                   >
-                    <Avatar
-                      uri={friend.avatarUrl}
-                      name={friend.name}
-                      size={46}
-                      isOnline={friend.isOnline}
-                    />
+                    <View style={styles.friendAvatarWrap}>
+                      <Avatar
+                        uri={friend.avatarUrl}
+                        name={friend.name}
+                        size={48}
+                        isOnline={friend.isOnline}
+                      />
+                      <View style={[styles.connectionStatusDot, friend.isOnline ? styles.onlineDot : styles.offlineDot]} />
+                    </View>
                     <View style={styles.friendTextWrap}>
-                      <Text style={[styles.friendName, isDark && styles.textDark]}>
+                      <Text style={[styles.friendName, isDark && styles.textDark]} numberOfLines={1}>
                         {friend.name}
                       </Text>
-                      <Text style={styles.friendSub}>
-                        {friend.isOnline
-                          ? 'Online • End-to-end encrypted'
-                          : 'Active recently'}
+                      <Text style={styles.friendSub} numberOfLines={1}>
+                        @{friend.username} · {friend.isOnline ? 'Online now' : 'Active recently'}
                       </Text>
                     </View>
-                    <ChevronRight size={18} color="#6D7B6B" />
+                    <View style={styles.friendChatAction}>
+                      <MessageCircle size={16} color={isDark ? '#72FE88' : colors.primary} />
+                      <Text style={[styles.friendChatText, isDark && styles.friendChatTextDark]}>Chat</Text>
+                      <ChevronRight size={15} color={isDark ? '#72FE88' : colors.primary} />
+                    </View>
                   </Pressable>
                   {idx < friends.length - 1 && (
                     <View style={[styles.rowDivider, isDark && styles.dividerDark]} />
@@ -685,12 +693,35 @@ const styles = StyleSheet.create({
   suggestedConnectTextDark: {
     color: '#53E16F',
   },
+  connectionsCard: {
+    backgroundColor: '#FFFFFF',
+  },
   friendRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    gap: 12,
+    paddingVertical: 13,
+    gap: 11,
+    minHeight: 76,
+  },
+  friendAvatarWrap: {
+    position: 'relative',
+  },
+  connectionStatusDot: {
+    position: 'absolute',
+    right: 0,
+    bottom: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  onlineDot: {
+    backgroundColor: '#34C759',
+  },
+  offlineDot: {
+    backgroundColor: '#A4ADA3',
   },
   userRow: {
     flexDirection: 'row',
@@ -713,7 +744,24 @@ const styles = StyleSheet.create({
   friendSub: {
     fontSize: 12.5,
     color: '#6D7B6B',
-    marginTop: 2,
+    marginTop: 3,
+  },
+  friendChatAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(0, 110, 40, 0.08)',
+  },
+  friendChatText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  friendChatTextDark: {
+    color: '#72FE88',
   },
   connectBtn: {
     flexDirection: 'row',
@@ -773,7 +821,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   cardPressed: {
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+    backgroundColor: 'rgba(0, 110, 40, 0.06)',
   },
   textDark: {
     color: '#F1F0F5',
