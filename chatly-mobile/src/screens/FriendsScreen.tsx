@@ -695,14 +695,17 @@ const styles = StyleSheet.create({
   },
   connectionsCard: {
     backgroundColor: '#FFFFFF',
+    marginHorizontal: 4,
+    marginTop: 4,
+    paddingVertical: 6,
   },
   friendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 13,
-    gap: 11,
-    minHeight: 76,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 16,
+    gap: 12,
+    minHeight: 84,
   },
   friendAvatarWrap: {
     position: 'relative',
@@ -801,7 +804,8 @@ const styles = StyleSheet.create({
   rowDivider: {
     height: 1,
     backgroundColor: '#E9E7ED',
-    marginLeft: 72,
+    marginLeft: 84,
+    marginRight: spacing.lg,
   },
   dividerDark: {
     backgroundColor: '#28292E',
