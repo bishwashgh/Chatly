@@ -414,11 +414,14 @@ export function ChatScreen({
       const result = await FileSystem.downloadAsync(url, localUri);
       if (result.status !== 200) throw new Error(`Download failed (${result.status})`);
 
-      // Android can open/share a file through its content provider URI. The
-      // downloaded file remains available in the app's local document storage.
-      const canOpen = await Linking.canOpenURL(result.uri);
+      // Android rejects private file:// URIs passed to another app. Convert
+      // the saved file to a shareable content:// URI first.
+      const openUri = Platform.OS === 'android'
+        ? await FileSystem.getContentUriAsync(result.uri)
+        : result.uri;
+      const canOpen = await Linking.canOpenURL(openUri);
       if (canOpen) {
-        await Linking.openURL(result.uri);
+        await Linking.openURL(openUri);
       } else {
         Alert.alert('Downloaded', `${safeName} was saved to Chatly storage.`);
       }
