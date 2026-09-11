@@ -26,6 +26,22 @@ export const MY_CONVERSATIONS_QUERY = gql`
   }
 `;
 
+export const CONVERSATION_UPDATED_SUBSCRIPTION = gql`
+  subscription ConversationUpdated($userId: ID!) {
+    conversationUpdated(userId: $userId) {
+      conversationId
+      lastMessage {
+        id
+        content
+        mediaUrl
+        messageType
+        createdAt
+        sender { id name }
+      }
+    }
+  }
+`;
+
 export const CREATE_DIRECT_CONVERSATION = gql`
   mutation CreateDirectConversation($recipientId: ID!) {
     createDirectConversation(recipientId: $recipientId) {

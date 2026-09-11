@@ -8,7 +8,7 @@ import { SignUpPage } from './pages/SignUpPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { ChatPage } from './pages/ChatPage';
 import { CallOverlay } from './components/CallOverlay';
-import { CallErrorToast } from './components/CallErrorToast';
+import { CallToast } from './components/CallToast';
 
 function FullPageLoader() {
   return (
@@ -40,7 +40,7 @@ export default function App() {
     <>
       {/* Call UI renders above every route so it survives navigation. */}
       <CallOverlay />
-      <CallErrorToast />
+      <CallToast />
 
       <Routes>
         <Route

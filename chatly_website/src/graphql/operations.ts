@@ -242,6 +242,18 @@ export const UNBLOCK_USER = gql`
 
 /* ---------------------------------------------------------- conversations */
 
+export const CONVERSATION_UPDATED_SUBSCRIPTION = gql`
+  subscription ConversationUpdated($userId: ID!) {
+    conversationUpdated(userId: $userId) {
+      conversationId
+      lastMessage {
+        ...MessageFields
+      }
+    }
+  }
+  ${MESSAGE_FIELDS}
+`;
+
 export const MY_CONVERSATIONS_QUERY = gql`
   query MyConversations {
     myConversations {
@@ -458,6 +470,17 @@ export const INCOMING_CALL_SUBSCRIPTION = gql`
         name
         avatarUrl
       }
+    }
+  }
+`;
+
+export const CALL_STATUS_UPDATED_SUBSCRIPTION = gql`
+  subscription CallStatusUpdated($sessionId: ID!) {
+    callStatusUpdated(sessionId: $sessionId) {
+      id
+      status
+      channelName
+      callType
     }
   }
 `;

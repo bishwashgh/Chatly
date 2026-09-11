@@ -13,6 +13,7 @@ import { useMutation, useSubscription } from '@apollo/client';
 import type { Participant, Room, Track } from 'livekit-client';
 import { useAuth } from './AuthContext';
 import {
+  CALL_STATUS_UPDATED_SUBSCRIPTION,
   END_CALL,
   INCOMING_CALL_SUBSCRIPTION,
   START_CALL,
@@ -20,12 +21,18 @@ import {
 } from '../graphql/operations';
 import { isCallingConfigured, liveKitUrl } from '../lib/livekit';
 import { readableError } from '../lib/format';
-import type { ActiveCall, CallOffer, CallSession, CallType } from '../lib/types';
+import type {
+  ActiveCall,
+  CallOffer,
+  CallSession,
+  CallStatusUpdate,
+  CallType,
+} from '../lib/types';
 
 /** How long the caller waits for an answer before giving up. */
 const RING_TIMEOUT_MS = 45_000;
 
-export type CallPhase = 'idle' | 'incoming' | 'outgoing' | 'active' | 'ended';
+export type CallPhase = 'idle' | 'incoming' | 'outgoing' | 'active';
 
 export type CallTrackInfo = {
   key: string;
@@ -51,6 +58,7 @@ type CallContextValue = {
   isCameraOn: boolean;
   durationSeconds: number;
   error: string | null;
+  notice: string | null;
   isConfigured: boolean;
   /** True when a remote participant has actually joined. */
   peerConnected: boolean;
@@ -61,6 +69,7 @@ type CallContextValue = {
   toggleMute: () => Promise<void>;
   toggleCamera: () => Promise<void>;
   dismissError: () => void;
+  dismissNotice: () => void;
 };
 
 const CallContext = createContext<CallContextValue | null>(null);
@@ -76,11 +85,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [peerConnected, setPeerConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const roomRef = useRef<Room | null>(null);
   const callRef = useRef<ActiveCall | null>(null);
   const phaseRef = useRef<CallPhase>('idle');
   const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True while this client is ending/declining the call, so its own status event
+  // does not surface as a "call ended" notice.
+  const closingRef = useRef(false);
 
   // Keep refs in sync so event handlers never read stale state.
   useEffect(() => {
@@ -153,6 +166,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setIsCameraOn(false);
     setDurationSeconds(0);
     setPeerConnected(false);
+    closingRef.current = false;
   }, [clearRingTimeout]);
 
   const connectRoom = useCallback(
@@ -167,6 +181,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         roomRef.current = null;
       }
 
+      // Loaded here so the LiveKit SDK never ships in the initial bundle.
       const { Room: LiveKitRoom, RoomEvent } = await import('livekit-client');
 
       const room = new LiveKitRoom({ adaptiveStream: true, dynacast: true });
@@ -179,7 +194,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
       room.on(RoomEvent.ParticipantConnected, () => {
         setPeerConnected(true);
-        // The far side joined, so the call is now live.
         setPhase((current) => (current === 'outgoing' ? 'active' : current));
         clearRingTimeout();
         syncTracks();
@@ -228,6 +242,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
 
       setError(null);
+      setNotice(null);
       setCall({
         sessionId: offer.sessionId,
         channelName: offer.channelName,
@@ -239,6 +254,58 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setPhase('incoming');
     },
   });
+
+  /* ------------------------------------------- ring-state reconciliation */
+
+  const isRinging = phase === 'outgoing' || phase === 'incoming';
+
+  /**
+   * The backend pushes `callStatusUpdated` to both participants of a session, so
+   * a decline, cancellation or answer is known immediately. The subscription is
+   * only active while a call is ringing.
+   */
+  useSubscription<{ callStatusUpdated: CallStatusUpdate }>(
+    CALL_STATUS_UPDATED_SUBSCRIPTION,
+    {
+      variables: { sessionId: call?.sessionId ?? '' },
+      skip: !isRinging || !call?.sessionId,
+      onData: ({ data }) => {
+        const update = data?.data?.callStatusUpdated;
+        if (!update) return;
+        if (closingRef.current) return;
+
+        const current = callRef.current;
+        if (!current || current.sessionId !== update.id) return;
+
+        if (phaseRef.current === 'outgoing') {
+          if (update.status === 'ACCEPTED') {
+            // Stop the ring timeout; the LiveKit join confirms audio flow.
+            clearRingTimeout();
+            setPhase('active');
+            return;
+          }
+          if (update.status === 'DECLINED') {
+            setNotice('Call declined');
+            void teardown();
+            return;
+          }
+          if (update.status === 'ENDED' || update.status === 'MISSED') {
+            setNotice('Call ended');
+            void teardown();
+          }
+          return;
+        }
+
+        // Still ringing as the recipient: the caller hung up or gave up. A
+        // DECLINED event here could only be this client's own decline, which is
+        // already being handled locally.
+        if (update.status === 'ENDED' || update.status === 'MISSED') {
+          setNotice('Missed call');
+          void teardown();
+        }
+      },
+    },
+  );
 
   /* ------------------------------------------------------- duration */
 
@@ -263,6 +330,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       if (phaseRef.current !== 'idle') return;
 
       setError(null);
+      setNotice(null);
       setDurationSeconds(0);
 
       try {
@@ -295,7 +363,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         clearRingTimeout();
         ringTimeoutRef.current = setTimeout(() => {
           void (async () => {
+            closingRef.current = true;
             await endCallMutation({ variables: { sessionId: active.sessionId } }).catch(() => {});
+            setNotice('No answer');
             await teardown();
           })();
         }, RING_TIMEOUT_MS);
@@ -312,6 +382,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     if (!pending || pending.isCaller) return;
 
     setError(null);
+    setNotice(null);
     setPhase('active');
 
     try {
@@ -330,6 +401,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const declineIncoming = useCallback(async () => {
     const pending = callRef.current;
+    closingRef.current = true;
     if (pending && !pending.isCaller) {
       await updateCallStatus({
         variables: { sessionId: pending.sessionId, status: 'DECLINED' },
@@ -340,6 +412,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const hangUp = useCallback(async () => {
     const current = callRef.current;
+    closingRef.current = true;
     if (current) {
       await endCallMutation({ variables: { sessionId: current.sessionId } }).catch(() => {
         /* the session is already gone */
@@ -378,6 +451,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, [syncTracks]);
 
   const dismissError = useCallback(() => setError(null), []);
+  const dismissNotice = useCallback(() => setNotice(null), []);
 
   // Clean up if the provider unmounts mid-call.
   useEffect(() => {
@@ -400,6 +474,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       isCameraOn,
       durationSeconds,
       error,
+      notice,
       isConfigured: isCallingConfigured,
       peerConnected,
       startCall,
@@ -409,6 +484,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       toggleMute,
       toggleCamera,
       dismissError,
+      dismissNotice,
     }),
     [
       phase,
@@ -418,6 +494,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       isCameraOn,
       durationSeconds,
       error,
+      notice,
       peerConnected,
       startCall,
       acceptIncoming,
@@ -426,6 +503,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       toggleMute,
       toggleCamera,
       dismissError,
+      dismissNotice,
     ],
   );
 

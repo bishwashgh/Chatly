@@ -28,6 +28,17 @@ export const INCOMING_CALL_SUBSCRIPTION = gql`
   }
 `;
 
+export const CALL_STATUS_UPDATED_SUBSCRIPTION = gql`
+  subscription CallStatusUpdated($sessionId: ID!) {
+    callStatusUpdated(sessionId: $sessionId) {
+      id
+      status
+      channelName
+      callType
+    }
+  }
+`;
+
 export const CALL_LOG_QUERY = gql`
   query CallLog {
     callLog { id callType status startedAt endedAt peer { id name avatarUrl isOnline } }

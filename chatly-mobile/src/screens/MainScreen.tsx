@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,11 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated';
-import { useQuery } from '@apollo/client';
-import { MY_CONVERSATIONS_QUERY } from '../graphql/conversations.gql';
+import { useQuery, useSubscription } from '@apollo/client';
+import {
+  MY_CONVERSATIONS_QUERY,
+  CONVERSATION_UPDATED_SUBSCRIPTION,
+} from '../graphql/conversations.gql';
 import { useAuth } from '../lib/AuthContext';
 import { useTheme } from '../lib/ThemeContext';
 import { colors, spacing } from '../lib/theme';
@@ -58,10 +61,32 @@ export function MainScreen({ navigation, route }: any) {
   }, [route?.params?.initialTab, activeTab, handleTabChange]);
 
   // Query conversation unread counts for dock badge
-  const { data } = useQuery(MY_CONVERSATIONS_QUERY, {
-    pollInterval: 8000,
+  const { data, refetch } = useQuery(MY_CONVERSATIONS_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
+
+  // Refresh the inbox the moment a message arrives in any conversation, so
+  // badges and previews no longer need a thread switch (or polling) to update.
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useSubscription(CONVERSATION_UPDATED_SUBSCRIPTION, {
+    variables: { userId: currentUser?.id ?? '' },
+    skip: !currentUser?.id,
+    onData: () => {
+      // Coalesce bursts (e.g. a fast back-and-forth) into one refetch.
+      if (refetchTimerRef.current) return;
+      refetchTimerRef.current = setTimeout(() => {
+        refetchTimerRef.current = null;
+        refetch().catch(() => {});
+      }, 750);
+    },
+  });
+
+  useEffect(() => {
+    return () => {
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+    };
+  }, []);
+
   const unreadTotal = (data?.myConversations ?? []).reduce(
     (acc: number, c: any) => acc + (c.unreadCount ?? 0),
     0

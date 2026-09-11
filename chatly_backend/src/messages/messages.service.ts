@@ -7,6 +7,7 @@ import { MessageType } from './models/message-type.enum';
 export const MESSAGE_ADDED = 'messageAdded';
 export const USER_TYPING_STATUS = 'userTypingStatus';
 export const MESSAGE_STATUS_UPDATED = 'messageStatusUpdated';
+export const CONVERSATION_UPDATED = 'conversationUpdated';
 
 @Injectable()
 export class MessagesService {
@@ -70,6 +71,18 @@ export class MessagesService {
       // Realtime delivery is best-effort. Redis outages must not make a
       // successfully persisted message look like a failed send.
       console.warn('Could not publish messageAdded event:', error);
+    }
+
+    // Per-user signal so inboxes can refresh previews and unread badges without
+    // subscribing to every conversation or polling.
+    try {
+      await this.pubSub.publish(CONVERSATION_UPDATED, {
+        conversationUpdated: { conversationId, lastMessage: message },
+        conversationId,
+        participantIds: participants.map((p) => p.userId),
+      });
+    } catch (error) {
+      console.warn('Could not publish conversationUpdated event:', error);
     }
 
     return message;

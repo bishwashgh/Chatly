@@ -4,8 +4,11 @@ Browser client for Chatly. Vite + React + TypeScript + Tailwind, talking to the
 existing `chatly_backend` GraphQL API over HTTP and WebSockets, with LiveKit for
 voice and video calls.
 
-This folder is standalone — it does not import from `chatly-mobile` or
-`chatly_backend`, and neither of those projects was modified to add it.
+This folder is self-contained — it imports nothing from `chatly-mobile` or
+`chatly_backend`. The two subscription fields the client relies on
+(`callStatusUpdated` and `conversationUpdated`) are served by the same backend
+and the mobile app consumes them too, so all three clients share one realtime
+contract.
 
 ## Quick start
 
@@ -53,7 +56,9 @@ than silently breaking every request — see `src/lib/apollo.ts` and
 **Messaging**
 - Message thread with day separators and consecutive-sender grouping
 - Text, image, video, audio and document messages
-- **Voice notes** recorded in-browser via `MediaRecorder`, with a live timer, cancel and send
+- Voice notes recorded in-browser via `MediaRecorder`, with a live timer, cancel
+  and send. Recordings are normalized to WAV so every browser and both native
+  apps can play them (see *Voice note portability* below)
 - Inline file upload via `uploadMessageMedia` (enforced at the server's 10 MB limit)
 - Emoji quick-insert and per-message emoji reactions with counts
 - Read receipts (`sent` / `delivered` / `read`) and message deletion for your own messages
@@ -63,15 +68,20 @@ than silently breaking every request — see `src/lib/apollo.ts` and
 - Outgoing calls from the chat header or the call history list
 - Incoming call ringing with accept / decline, auto-declined when already busy
 - Local self-view, remote video, mute and camera toggles, and a call duration timer
-- 45-second ring timeout so an unanswered call cleans itself up
+- Declines, cancellations and "no answer" resolve immediately: the backend pushes
+  `callStatusUpdated` to both participants, so nothing waits on a timeout
 - Call history with status labels (completed, declined, missed) and call-back actions
 - The LiveKit SDK is imported lazily, so it never loads on a normal page view
 
-**Realtime** (all four messaging subscriptions)
-- `messageAdded` — new messages appear live
+**Realtime** (all six subscriptions)
+- `messageAdded` — new messages appear live in the open conversation
 - `messageStatusUpdated` — receipts patch in place without a refetch
 - `messageReactionUpdated` — reactions stay in sync
 - `userTypingStatus` — typing indicator, with a timeout guard against missed stop events
+- `callStatusUpdated` — a call's decline, cancellation or answer reaches both
+  participants immediately
+- `conversationUpdated` — a per-user inbox signal, so previews and unread badges
+  update across all conversations without opening the thread
 - Auto-reconnecting WebSocket with exponential backoff
 
 **UI**
@@ -95,12 +105,13 @@ src/
 ├── components/     UI primitives, chat widgets, call overlay, modals
 ├── context/
 │   ├── AuthContext.tsx   session, sign-in/out, refresh-failure handling
-│   ├── CallContext.tsx   LiveKit room lifecycle, ringing, controls
+│   ├── CallContext.tsx   LiveKit room lifecycle, ringing, status reconciliation
 │   └── ThemeContext.tsx  light/dark
 ├── graphql/        operations.ts — every GraphQL document
 ├── hooks/          useVoiceRecorder (MediaRecorder)
 ├── lib/
 │   ├── apollo.ts       links, auth header, refresh, graphql-ws
+│   ├── audio.ts        WAV transcode for voice notes
 │   ├── conversations.ts title/peer derivation helpers
 │   ├── format.ts       date, duration and error formatting
 │   ├── livekit.ts      LiveKit URL validation
@@ -109,6 +120,47 @@ src/
 └── pages/          Login, SignUp, ResetPassword, ChatPage
 ```
 
+## Design notes
+
+### Call decline and cancellation
+
+The backend publishes `callStatusUpdated` for both participants of a call
+session (`chatly_backend/src/calls`), so ringing state is event-driven rather
+than polled. The subscription is only active while a call is ringing:
+
+- `ACCEPTED` → the caller's ring timeout is cancelled and the call goes active
+- `DECLINED` → the caller sees "Call declined"
+- `ENDED` / `MISSED` → "Call ended" for the caller, "Missed call" for a
+  recipient who is still ringing because the caller cancelled
+
+The 45-second timeout remains only as a fallback for a genuinely unanswered
+call; an answer or decline settles the call in well under a second.
+
+### Inbox freshness
+
+`messageAdded` carries a `conversationId`, so it only reaches clients that have
+the thread open. The backend therefore also emits a per-user
+`conversationUpdated` event to every participant of a conversation
+(`chatly_backend/src/messages`). Both the web client and the mobile app refetch
+their conversation list on that event (debounced to coalesce bursts), so unread
+badges and previews update without opening the conversation and without polling.
+Tab focus still triggers an immediate refetch as a cheap safety net.
+
+### Voice note portability
+
+Chromium records `audio/webm`; Safari cannot play that container, and neither
+can some Android builds. Recordings that are not already in a universally
+playable container are decoded with the Web Audio API and re-encoded as 16 kHz
+mono PCM WAV (`src/lib/audio.ts`), which every browser and both native apps
+play. Browsers that produce webm can also decode it, so the transcode always has
+a valid source.
+
+Two consequences worth knowing: transcoding adds a brief pause before upload on
+Chromium, and because PCM is uncompressed a very long note could exceed the
+server's 10 MB cap. Notes that would exceed ~9 MB fall back to the original
+recording rather than failing outright, and the composer warns if the file is
+still too large.
+
 ## Bundle
 
 The production build splits by concern. LiveKit is dynamically imported when a
@@ -116,26 +168,15 @@ call starts, so it is not part of the initial load:
 
 | Chunk | Size | Gzipped |
 | --- | --- | --- |
-| `index` (app code) | 108 kB | 27 kB |
+| `index` (app code) | 112 kB | 28 kB |
 | `react` | 155 kB | 51 kB |
 | `apollo` | 230 kB | 68 kB |
 | `livekit` (lazy) | 564 kB | 148 kB |
 
-## Known limitations
+## Security notes before shipping
 
-- **A declined call is not signalled back to the caller.** There is no
-  subscription for call-status changes, so the caller keeps ringing until the
-  45-second timeout instead of learning the call was declined. Fixing this
-  needs a backend status subscription.
-- **Voice note playback depends on the recorded codec.** Safari records
-  `audio/mp4` and Chromium records `audio/webm`; both play in modern browsers,
-  but older Safari cannot play the webm variant.
-- **Unread counts refresh on activity**, not on a poll. The backend's
-  `messageAdded` subscription requires a `conversationId`, so messages arriving
-  in a conversation you have not opened will not update the sidebar until you
-  switch conversations.
 - **Token storage uses `localStorage`**, which is readable by any script on the
   origin. Move to an httpOnly cookie flow before adding untrusted third-party
   scripts.
 - **The API allows `origin: '*'`.** Lock the backend's CORS origin down to your
-  deployed web origin before shipping to production.
+  deployed web origin.

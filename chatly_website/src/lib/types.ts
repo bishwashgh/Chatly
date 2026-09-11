@@ -124,6 +124,20 @@ export type ActiveCall = {
   isCaller: boolean;
 };
 
+/** Pushed over `callStatusUpdated` for both participants of a call. */
+export type CallStatusUpdate = {
+  id: string;
+  status: CallStatus;
+  channelName: string;
+  callType: CallType;
+};
+
+/** Pushed over `conversationUpdated` for every participant of a conversation. */
+export type ConversationUpdate = {
+  conversationId: string;
+  lastMessage?: Message | null;
+};
+
 export type MessageStatusEvent = {
   messageId: string;
   conversationId: string;

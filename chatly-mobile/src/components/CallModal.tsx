@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useSubscription } from '@apollo/client';
@@ -14,7 +14,12 @@ import {
   isTrackReference,
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
-import { INCOMING_CALL_SUBSCRIPTION, END_CALL, UPDATE_CALL_STATUS } from '../graphql/calls.gql';
+import {
+  INCOMING_CALL_SUBSCRIPTION,
+  CALL_STATUS_UPDATED_SUBSCRIPTION,
+  END_CALL,
+  UPDATE_CALL_STATUS,
+} from '../graphql/calls.gql';
 import { useCall, ActiveCall } from '../lib/CallContext';
 
 const configuredLiveKitUrl = process.env.EXPO_PUBLIC_LIVEKIT_URL;
@@ -251,15 +256,55 @@ export function CallModal({ currentUserId }: CallModalProps) {
   const [phase, setPhase] = useState<Phase>('outgoing');
   const [isMuted, setIsMuted] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [endCall] = useMutation(END_CALL);
   const [updateCallStatus] = useMutation(UPDATE_CALL_STATUS);
 
+  // Latest call kept in a ref so subscription callbacks never read stale state.
+  const activeCallRef = useRef<ActiveCall | null>(activeCall);
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
+
+  // Guards against reacting twice to the same end event (for example the status
+  // subscription firing after this client already hung up).
+  const closingRef = useRef(false);
+  const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const finishTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearRingTimeout = useCallback(() => {
+    if (ringTimeoutRef.current) {
+      clearTimeout(ringTimeoutRef.current);
+      ringTimeoutRef.current = null;
+    }
+  }, []);
+
+  /** Show a short reason for a remotely-ended call, then close the modal. */
+  const finishRemotely = useCallback(
+    (message: string) => {
+      if (closingRef.current) return;
+      closingRef.current = true;
+      clearRingTimeout();
+      const sessionId = activeCallRef.current?.sessionId;
+      setNotice(message);
+      finishTimeoutRef.current = setTimeout(() => {
+        finishTimeoutRef.current = null;
+        closingRef.current = false;
+        setNotice(null);
+        // Only close the call this notice belongs to; a newer call may have
+        // arrived in the meantime.
+        if (activeCallRef.current?.sessionId === sessionId) dismissCall();
+      }, 1400);
+    },
+    [clearRingTimeout, dismissCall],
+  );
+
   useSubscription(INCOMING_CALL_SUBSCRIPTION, {
     variables: { userId: currentUserId },
     onData: ({ data: subscriptionData }) => {
-      const call = subscriptionData?.data?.incomingCall;
-      if (call && !activeCall) {
+      const call = subscriptionData?.data?.incomingCallSignal;
+      if (call && !activeCallRef.current) {
         answerCall({
           sessionId: call.sessionId,
           channelName: call.channelName,
@@ -277,6 +322,36 @@ export function CallModal({ currentUserId }: CallModalProps) {
     },
   });
 
+  // Learn about the other side accepting, declining or hanging up. Without this
+  // the caller would keep ringing until its own timeout after a decline, and the
+  // recipient would keep ringing after the caller cancels.
+  useSubscription(CALL_STATUS_UPDATED_SUBSCRIPTION, {
+    variables: { sessionId: activeCall?.sessionId ?? '' },
+    skip: !activeCall,
+    onData: ({ data: subscriptionData }) => {
+      const updated = subscriptionData?.data?.callStatusUpdated;
+      if (!updated) return;
+      const outgoing = activeCallRef.current?.isOutgoing ?? false;
+
+      if (updated.status === 'DECLINED') {
+        // A decline on the recipient side is this client's own action, already
+        // handled by handleEnd.
+        if (!outgoing) return;
+        finishRemotely('Call declined');
+        return;
+      }
+      if (updated.status === 'ENDED' || updated.status === 'MISSED') {
+        finishRemotely(outgoing ? 'Call ended' : 'Missed call');
+        return;
+      }
+      if (updated.status === 'ACCEPTED' && outgoing) {
+        // Answered: stop the no-answer timer. The room flips to connected once
+        // the remote live audio/video participant actually joins.
+        clearRingTimeout();
+      }
+    },
+  });
+
   useEffect(() => {
     if (!activeCall) {
       setElapsed(0);
@@ -286,21 +361,47 @@ export function CallModal({ currentUserId }: CallModalProps) {
     setIsMuted(false);
   }, [activeCall]);
 
+  // Give up on an unanswered outgoing call instead of ringing forever.
+  useEffect(() => {
+    if (!activeCall?.isOutgoing || phase !== 'outgoing') {
+      clearRingTimeout();
+      return;
+    }
+    clearRingTimeout();
+    ringTimeoutRef.current = setTimeout(() => {
+      endCall({ variables: { sessionId: activeCall.sessionId } }).catch(() => {});
+      finishRemotely('No answer');
+    }, 45_000);
+    return clearRingTimeout;
+  }, [activeCall, phase, clearRingTimeout, finishRemotely, endCall]);
+
   useEffect(() => {
     if (phase !== 'connected') return;
     const interval = setInterval(() => setElapsed((prev) => prev + 1), 1000);
     return () => clearInterval(interval);
   }, [phase]);
 
+  // Never leave a timer running past unmount.
+  useEffect(() => {
+    return () => {
+      if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+      if (finishTimeoutRef.current) clearTimeout(finishTimeoutRef.current);
+    };
+  }, []);
+
   if (!activeCall) return null;
 
   const handleEnd = async () => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    clearRingTimeout();
     try {
       await updateCallStatus({ variables: { sessionId: activeCall.sessionId, status: phase === 'incoming' ? 'DECLINED' : 'ENDED' } });
       await endCall({ variables: { sessionId: activeCall.sessionId } });
     } catch (error) {
       console.warn('[CallModal] Failed to update call status:', error);
     } finally {
+      closingRef.current = false;
       // Always close the native room/modal locally, even if the API is waking up
       // or the network is temporarily unavailable.
       dismissCall();
@@ -313,6 +414,12 @@ export function CallModal({ currentUserId }: CallModalProps) {
     <Modal visible transparent animationType="fade" onRequestClose={handleEnd}>
       <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }]}>
         <CallBackdrop avatarUrl={activeCall.peer.avatarUrl} />
+
+        {notice && (
+          <View style={styles.notice} pointerEvents="none">
+            <Text style={styles.noticeText}>{notice}</Text>
+          </View>
+        )}
 
         {phase === 'incoming' ? (
           <>
@@ -389,6 +496,17 @@ const styles = StyleSheet.create({
   videoTile: { width: '100%', height: '100%', borderRadius: 16 },
   waitingForPeer: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: 'rgba(28,28,30,0.72)' },
   waitingText: { color: 'rgba(255,255,255,0.72)', fontSize: 14 },
+  notice: { position: 'absolute', top: 14, left: 0, right: 0, alignItems: 'center', zIndex: 20 },
+  noticeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
   bottom: { alignItems: 'center', gap: 8, paddingBottom: 4 },
   controls: { flexDirection: 'row', justifyContent: 'center', gap: 28, marginTop: 8 },
   controlBtn: {

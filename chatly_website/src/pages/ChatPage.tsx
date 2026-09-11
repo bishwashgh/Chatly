@@ -33,6 +33,7 @@ import {
   MESSAGE_STATUS_UPDATED_SUBSCRIPTION,
   MESSAGES_QUERY,
   MY_CONVERSATIONS_QUERY,
+  CONVERSATION_UPDATED_SUBSCRIPTION,
   TOGGLE_REACTION,
   USER_TYPING_STATUS_SUBSCRIPTION,
 } from '../graphql/operations';
@@ -41,6 +42,7 @@ import { readableError } from '../lib/format';
 import type {
   CallType,
   Conversation,
+  ConversationUpdate,
   Message,
   MessageStatusEvent,
   TypingEvent,
@@ -62,13 +64,20 @@ export function ChatPage() {
   const [peerTyping, setPeerTyping] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const conversationsRefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentUserId = currentUser?.id ?? '';
   const activeId = routeConversationId ?? null;
 
+  /**
+   * Unread badges and previews stay live via the backend's per-user
+   * `conversationUpdated` subscription, so no polling is required.
+   */
   const conversationsQuery = useQuery<{ myConversations: Conversation[] }>(
     MY_CONVERSATIONS_QUERY,
-    { fetchPolicy: 'cache-and-network' },
+    {
+      fetchPolicy: 'cache-and-network',
+    },
   );
 
   const messagesQuery = useQuery<{ messages: Message[] }>(MESSAGES_QUERY, {
@@ -105,6 +114,55 @@ export function ChatPage() {
   // handlers from being recreated on every render.
   const refetchMessages = messagesQuery.refetch;
   const refetchConversations = conversationsQuery.refetch;
+
+  /**
+   * `messageAdded` requires a `conversationId`, but the backend also emits a
+   * per-user `conversationUpdated` for every conversation you take part in.
+   * Refetch the list on it so previews and unread badges stay current without
+   * opening the thread.
+   */
+  useSubscription<{ conversationUpdated: ConversationUpdate }>(
+    CONVERSATION_UPDATED_SUBSCRIPTION,
+    {
+      variables: { userId: currentUserId },
+      skip: !currentUserId,
+      onData: () => {
+        // Coalesce bursts (e.g. a fast back-and-forth) into one refetch.
+        if (conversationsRefetchTimerRef.current) return;
+        conversationsRefetchTimerRef.current = setTimeout(() => {
+          conversationsRefetchTimerRef.current = null;
+          void refetchConversations().catch(() => {});
+        }, 400);
+      },
+    },
+  );
+
+  // Refresh instantly when the tab regains focus.
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (!document.hidden) void refetchConversations().catch(() => {});
+    }
+
+    function handleWindowFocus() {
+      void refetchConversations().catch(() => {});
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [refetchConversations]);
+
+  useEffect(() => {
+    return () => {
+      if (conversationsRefetchTimerRef.current) {
+        clearTimeout(conversationsRefetchTimerRef.current);
+      }
+    };
+  }, []);
 
   /* ------------------------------------------------------------ realtime */
 

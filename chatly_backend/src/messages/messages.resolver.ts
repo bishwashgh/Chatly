@@ -6,8 +6,10 @@ import {
   MESSAGE_ADDED,
   USER_TYPING_STATUS,
   MESSAGE_STATUS_UPDATED,
+  CONVERSATION_UPDATED,
 } from './messages.service';
 import { Message } from './models/message.model';
+import { ConversationUpdate } from './models/conversation-update.model';
 import { TypingIndicator } from './models/typing-indicator.model';
 import { MessageStatus } from './models/message-status.model';
 import { SendMessageInput } from './dto/send-message.input';
@@ -85,5 +87,18 @@ export class MessagesResolver {
   })
   messageStatusUpdated(@Args('conversationId', { type: () => ID }) conversationId: string) {
     return this.pubSub.asyncIterator(MESSAGE_STATUS_UPDATED);
+  }
+
+  /**
+   * Per-user inbox signal: fires for every conversation the subscribed user
+   * takes part in, so unread badges and previews stay live without the client
+   * having to open the conversation first.
+   */
+  @Subscription(() => ConversationUpdate, {
+    filter: (payload, variables) =>
+      (payload.participantIds ?? []).includes(variables.userId),
+  })
+  conversationUpdated(@Args('userId', { type: () => ID }) userId: string) {
+    return this.pubSub.asyncIterator(CONVERSATION_UPDATED);
   }
 }

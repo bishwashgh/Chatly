@@ -1,7 +1,7 @@
 import { Resolver, Query, Mutation, Subscription, Args, ID } from '@nestjs/graphql';
 import { UseGuards, Inject } from '@nestjs/common';
 import { RedisPubSub } from 'graphql-redis-subscriptions';
-import { CallsService, INCOMING_CALL_SIGNAL } from './calls.service';
+import { CallsService, INCOMING_CALL_SIGNAL, CALL_STATUS_UPDATED } from './calls.service';
 import { CallSession } from './models/call-session.model';
 import { CallOffer } from './models/call-offer.model';
 import { CallLogEntry } from './models/call-log.model';
@@ -51,5 +51,17 @@ export class CallsResolver {
   })
   incomingCallSignal(@Args('userId', { type: () => ID }) userId: string) {
     return this.pubSub.asyncIterator(INCOMING_CALL_SIGNAL);
+  }
+
+  /**
+   * Status changes for a single call session. Only the two participants of the
+   * requested session receive events; the caller uses ACCEPTED/DECLINED/ENDED
+   * to stop ringing, and the recipient uses ENDED to dismiss a cancelled call.
+   */
+  @Subscription(() => CallSession, {
+    filter: (payload, variables) => payload.sessionId === variables.sessionId,
+  })
+  callStatusUpdated(@Args('sessionId', { type: () => ID }) sessionId: string) {
+    return this.pubSub.asyncIterator(CALL_STATUS_UPDATED);
   }
 }

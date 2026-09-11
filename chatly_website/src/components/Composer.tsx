@@ -4,6 +4,7 @@ import { Mic, Paperclip, Send, Smile, X } from 'lucide-react';
 import { ErrorMessage } from './ErrorMessage';
 import { Spinner } from './Spinner';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
+import { normalizeVoiceFile } from '../lib/audio';
 import { SEND_MESSAGE, TYPING, UPLOAD_MESSAGE_MEDIA } from '../graphql/operations';
 import { formatDuration, readableError } from '../lib/format';
 import type { MessageType } from '../lib/types';
@@ -123,7 +124,16 @@ export function Composer({ conversationId, onSent }: ComposerProps) {
       const file = await voice.stopRecording();
       if (!file) return;
 
-      const { data } = await uploadMedia({ variables: { file } });
+      // Chromium records webm, which Safari cannot play. Normalize to WAV so
+      // the note plays everywhere, including both native apps.
+      const uploadFile = await normalizeVoiceFile(file);
+
+      if (uploadFile.size > MAX_UPLOAD_BYTES) {
+        setError('That voice note is too long to send. Please record a shorter one.');
+        return;
+      }
+
+      const { data } = await uploadMedia({ variables: { file: uploadFile } });
       const mediaUrl = data?.uploadMessageMedia;
 
       if (typeof mediaUrl !== 'string' || !mediaUrl.trim()) {

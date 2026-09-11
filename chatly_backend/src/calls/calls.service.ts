@@ -7,6 +7,7 @@ import { CallType } from './models/call-type.enum';
 import { CallStatus } from './models/call-status.enum';
 
 export const INCOMING_CALL_SIGNAL = 'incomingCallSignal';
+export const CALL_STATUS_UPDATED = 'callStatusUpdated';
 
 @Injectable()
 export class CallsService {
@@ -14,6 +15,26 @@ export class CallsService {
     private prisma: PrismaService,
     @Inject(PUB_SUB) private pubSub: RedisPubSub,
   ) {}
+
+  /**
+   * Announce a call's new status to both participants. The caller relies on
+   * this to learn that a call was declined, cancelled or answered instead of
+   * ringing until its own timeout. Realtime delivery is best-effort: a Redis
+   * hiccup must never make a persisted status change look like a failure.
+   */
+  private async publishStatus<T extends { id: string; callerId: string; recipientId: string }>(
+    session: T,
+  ) {
+    try {
+      await this.pubSub.publish(CALL_STATUS_UPDATED, {
+        callStatusUpdated: session,
+        sessionId: session.id,
+        participantIds: [session.callerId, session.recipientId],
+      });
+    } catch (error) {
+      console.warn('Could not publish callStatusUpdated event:', error);
+    }
+  }
 
   private async mintToken(roomName: string, identity: string) {
     const token = new AccessToken(
@@ -62,39 +83,56 @@ export class CallsService {
       data: { roomToken: callerToken },
     });
 
-    await this.pubSub.publish(INCOMING_CALL_SIGNAL, {
-      incomingCallSignal: {
-        sessionId: session.id,
-        roomToken: recipientToken,
-        channelName,
-        caller: session.caller,
-        callType,
-      },
-      userId: recipientId,
-    });
+    try {
+      await this.pubSub.publish(INCOMING_CALL_SIGNAL, {
+        incomingCallSignal: {
+          sessionId: session.id,
+          roomToken: recipientToken,
+          channelName,
+          caller: session.caller,
+          callType,
+        },
+        userId: recipientId,
+      });
+    } catch (error) {
+      console.warn('Could not publish incomingCallSignal event:', error);
+    }
 
-    return { ...session, roomToken: callerToken };
+    const startedCall = { ...session, roomToken: callerToken };
+    await this.publishStatus(startedCall);
+
+    return startedCall;
   }
 
   async setStatus(userId: string, sessionId: string, status: CallStatus) {
-    const session = await this.prisma.callSession.findUnique({ where: { id: sessionId } });
+    const session = await this.prisma.callSession.findUnique({
+      where: { id: sessionId },
+      include: { caller: true, recipient: true },
+    });
     if (!session) throw new NotFoundException('Call session not found');
     if (session.callerId !== userId && session.recipientId !== userId) throw new ForbiddenException('You are not part of this call');
-    return this.prisma.callSession.update({ where: { id: sessionId }, data: { status, ...(status === CallStatus.ENDED ? { endedAt: new Date() } : {}) } });
+    const updated = await this.prisma.callSession.update({ where: { id: sessionId }, data: { status, ...(status === CallStatus.ENDED ? { endedAt: new Date() } : {}) } });
+    await this.publishStatus({ ...updated, caller: session.caller, recipient: session.recipient });
+    return updated;
   }
 
   async endCall(userId: string, sessionId: string) {
-    const session = await this.prisma.callSession.findUnique({ where: { id: sessionId } });
+    const session = await this.prisma.callSession.findUnique({
+      where: { id: sessionId },
+      include: { caller: true, recipient: true },
+    });
     if (!session) {
       throw new NotFoundException('Call session not found');
     }
     if (session.callerId !== userId && session.recipientId !== userId) {
       throw new ForbiddenException('You are not part of this call');
     }
-    return this.prisma.callSession.update({
+    const updated = await this.prisma.callSession.update({
       where: { id: sessionId },
       data: { status: CallStatus.ENDED, endedAt: new Date() },
     });
+    await this.publishStatus({ ...updated, caller: session.caller, recipient: session.recipient });
+    return updated;
   }
 
   async updateStatus(sessionId: string, status: CallStatus) {
