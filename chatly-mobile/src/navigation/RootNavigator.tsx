@@ -9,6 +9,7 @@ import { FriendsScreen } from '../screens/FriendsScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 import { CallLogScreen } from '../screens/CallLogScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { BlockedContactsScreen } from '../screens/BlockedContactsScreen';
 import { useAuth } from '../lib/AuthContext';
 import { useTheme } from '../lib/ThemeContext';
 
@@ -25,6 +26,7 @@ export type RootStackParamList = {
   CallLog: undefined;
   Settings: undefined;
   Profile: undefined;
+  BlockedContacts: undefined;
   Chat: {
     conversationId: string;
     title?: string;
@@ -70,6 +72,7 @@ export function RootNavigator() {
           <Stack.Screen name="CallLog" component={CallLogScreen} />
           <Stack.Screen name="Settings" component={ProfileScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="BlockedContacts" component={BlockedContactsScreen} />
           <Stack.Screen name="Chat">
             {({ route, navigation }) => (
               <ChatScreen

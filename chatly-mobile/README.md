@@ -42,7 +42,31 @@ In the Google Cloud Console, configure **both** OAuth clients:
 1. **Web application client**: put its complete ID in `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. It must be the same value as the deployed backend's `GOOGLE_CLIENT_ID`, or the backend will reject the ID token.
 2. **Android client**: package name must be `com.chatly.app` (matches `app.json`) and its SHA-1 must match the certificate used to sign the APK.
 
-For a locally installed debug APK, use the debug SHA-1. For an EAS/Play release APK, add the EAS/Play app-signing SHA-1 as a separate Android client. `DEVELOPER_ERROR` almost always means the package name, SHA-1, or OAuth project is wrong. After changing Google Cloud credentials, rebuild and reinstall the app; old APKs keep their old build-time configuration.
+Which SHA-1 goes in the Android client depends on how the APK was signed:
+
+| Build | SHA-1 to register |
+| --- | --- |
+| Sideloaded release APK (`./gradlew assembleRelease`) | the release keystore's SHA-1 — see step 6 |
+| Debug build (`expo run:android`) | the debug keystore's SHA-1 — `./gradlew signingReport` |
+| EAS / Play Store | the EAS or Play app-signing SHA-1, as its own Android client |
+
+Register every key you actually install from; one Android client per signing key is fine.
+
+The field is validated on **format**, so `Invalid SHA-1 certificate fingerprint` means the pasted
+text is malformed, not that the key is wrong: it wants 20 colon-separated pairs (40 hex characters).
+The usual culprits are pasting the SHA-256 line instead (32 pairs), or copying the whole
+`SHA1: 81:6F:…` line from `keytool` including the label and leading tab. Print just the value:
+
+```bash
+cd android
+keytool -list -v -keystore app/chatly-release.keystore -alias chatly \
+  -storepass "$(grep '^storePassword=' keystore.properties | cut -d= -f2)" | sed -n 's/.*SHA1: //p'
+```
+
+Adding or editing an **Android** client takes effect immediately — Google checks the package name and
+fingerprint server-side, so no rebuild or reinstall is needed. Editing the **web** client ID does
+need a rebuild and reinstall, because that value is compiled into the JS bundle; an old APK keeps its
+old value. `DEVELOPER_ERROR` almost always means the package name, SHA-1, or OAuth project is wrong.
 
 ### 4. Get the Android SHA-1
 
@@ -160,10 +184,65 @@ Google sign-in, sending a photo, and downloading an attachment. If R8 fails the 
 `proguard-rules.pro`; see the comments at the bottom of that file for the other reports
 (`mapping.txt` to deobfuscate a crash, `usage.txt` and `resources.txt` to see what was removed).
 
-For reference, the biggest remaining size lever is unused CPU architectures: the default universal
-APK bundles native libraries for `armeabi-v7a, arm64-v8a, x86, x86_64`, and dropping the two x86
-variants (only needed by emulators) removes a large part of the payload. For Play, build an AAB
-with `bundleRelease` — Google splits it per architecture automatically.
+#### CPU architectures (the biggest lever)
+
+LiveKit/WebRTC and Hermes ship prebuilt `.so` files for every Android ABI. Play Store splits them
+per architecture automatically; a sideloaded APK does not, so all four ABIs would otherwise end up
+in one file. `plugins/withAbiSplits.js` pins the packaged ABIs to `arm64-v8a, armeabi-v7a`:
+
+| Build | APK size | Installable on |
+| --- | --- | --- |
+| Default (before filtering) | ~136 MB | everything, including emulators |
+| `arm64-v8a, armeabi-v7a` (current) | ~64 MB | every real phone from ~2017 onward, incl. 32-bit budget devices |
+| `arm64-v8a` only | ~43 MB | modern phones only |
+
+`arm64-v8a` alone is smaller but drops older 32-bit phones, so both ARM ABIs stay in by default.
+The x86 ABIs are emulator-only and are excluded — that alone is most of the saving.
+
+```bash
+# Emulator / x86 build, overriding the config without editing anything
+cd android && ./gradlew assembleRelease -Pchatly.abiFilters=x86_64
+```
+
+The value is configured in `app.json` (`abis`) and written to both
+`reactNativeArchitectures` (what React Native compiles) and `chatly.abiFilters` (what actually gets
+packaged) in `android/gradle.properties`. `reactNativeArchitectures` on its own does **not** strip
+prebuilt AAR libraries — only `ndk.abiFilters` does — so both are needed and both must match.
+
+If you ever publish to Play, use `./gradlew bundleRelease` instead: the AAB splits itself per
+architecture regardless of these settings.
+
+### 8. Distributing without Google Play
+
+Google Play costs a one-time $25 developer fee. If you are not paying it, the signed release APK is
+the product — install it directly:
+
+```bash
+# Over USB
+adb install -r dist/Chatly-1.0.0.apk
+```
+
+To share it with someone else, send them `dist/Chatly-1.0.0.apk` (copy it here after each build:
+`cp android/app/build/outputs/apk/release/app-release.apk dist/Chatly-1.0.0.apk`). On the phone they
+must allow the install: **Settings → Apps → Special access → Install unknown apps → allow** for
+whatever app they opened it from (Chrome, Files, WhatsApp). If Play Protect blocks it, the prompt
+has an **Install anyway** option — that warning appears for every app not distributed through Play.
+
+Things that only matter *because* there is no Play Store:
+
+- **Signing is entirely on you.** With Play App Signing Google can recover a lost upload key; here,
+losing `android/app/chatly-release.keystore` means you can never update the installed app — Android
+refuses an APK signed with a different key. Back it up offline.
+- **Bump `versionCode` for every build you hand out.** Android will not install a lower
+`versionCode` over an existing install. Edit it in **both** places: `app.json`
+(`expo.android.versionCode`) and `android/app/build.gradle` (`versionCode`). `android/` is checked
+in, so the running build reads `build.gradle`; `app.json` keeps `expo prebuild` from resetting it.
+- **Google Sign-In needs the release SHA-1** registered as an Android OAuth client (step 3), or
+sign-in fails with `DEVELOPER_ERROR`.
+- **No staged rollouts or crash reports.** Send the file, ask people to update manually.
+
+Free alternatives to Play if you want a store listing: Amazon Appstore and Samsung Galaxy Store have
+free developer accounts. `bundleRelease` (AAB) is only needed for Play; the stores above accept APKs.
 
 ### Notes
 
@@ -171,3 +250,8 @@ with `bundleRelease` — Google splits it per architecture automatically.
 - Release builds should use HTTPS/WSS for the deployed API.
 - If you change `app.json` (name, permissions, plugins…), re-sync the native folders with `npx expo prebuild` (or `expo run:android` does it automatically).
 - The `android/` folder is generated; delete it anytime and re-run prebuild if you want a clean regeneration.
+- ⚠️ **`npx expo prebuild` regenerates `android/app/build.gradle`, and the release-signing block in
+it is a hand edit with no config plugin behind it** (unlike the ABI and LiveKit settings, which do
+have plugins). After any prebuild, check that the release signing is still there and that the build
+no longer prints the `[Chatly] No release keystore configured` warning, or you will ship a
+debug-signed APK that cannot update an existing install.

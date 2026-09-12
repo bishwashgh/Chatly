@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PUB_SUB } from '../common/pubsub.provider';
 import { RedisPubSub } from 'graphql-redis-subscriptions';
 import { MessageType } from './models/message-type.enum';
+import { FriendshipStatus } from '../friendships/models/friendship.model';
 
 export const MESSAGE_ADDED = 'messageAdded';
 export const USER_TYPING_STATUS = 'userTypingStatus';
@@ -54,6 +55,39 @@ export class MessagesService {
       });
       if (block) {
         throw new ForbiddenException('You cannot message this user');
+      }
+
+      // Friends-only inboxes: the recipient, not the sender, decides who may
+      // message them. Only enforced on 1:1 conversations - in a group `otherId`
+      // is just whichever participant came back first, so gating on it would
+      // block an entire group over one member's setting.
+      const conversation = await this.prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: { isGroup: true },
+      });
+
+      if (!conversation?.isGroup) {
+        const recipient = await this.prisma.user.findUnique({
+          where: { id: otherId },
+          select: { friendGated: true },
+        });
+
+        if (recipient?.friendGated) {
+          const friendship = await this.prisma.friendship.findFirst({
+            where: {
+              status: FriendshipStatus.ACCEPTED,
+              OR: [
+                { requesterId: senderId, addresseeId: otherId },
+                { requesterId: otherId, addresseeId: senderId },
+              ],
+            },
+            select: { id: true },
+          });
+
+          if (!friendship) {
+            throw new ForbiddenException('This person only accepts messages from friends');
+          }
+        }
       }
     }
 

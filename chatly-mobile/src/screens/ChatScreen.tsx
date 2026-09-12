@@ -63,6 +63,7 @@ import {
   DELETE_MESSAGE,
 } from '../graphql/messages.gql';
 import { START_CALL } from '../graphql/calls.gql';
+import { USER_QUERY } from '../graphql/users.gql';
 import { VoiceMessagePlayer } from '../components/VoiceMessagePlayer';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { Avatar } from '../components/Avatar';
@@ -73,6 +74,7 @@ import { colors, radii, shadows, spacing } from '../lib/theme';
 import { useTheme } from '../lib/ThemeContext';
 import { AttachmentSheet, AttachmentAction } from '../components/AttachmentSheet';
 import { MessageContextMenu, MessageMenuAction } from '../components/MessageContextMenu';
+import { PeerProfileModal } from '../components/PeerProfileModal';
 import { ReactNativeFile } from 'apollo-upload-client';
 
 const QUICK_REACTIONS = [String.fromCodePoint(0x2764, 0xFE0F), String.fromCodePoint(0x1F602), String.fromCodePoint(0x1F44D), String.fromCodePoint(0x1F62E), String.fromCodePoint(0x1F622)];
@@ -139,6 +141,7 @@ export function ChatScreen({
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const [voiceSending, setVoiceSending] = useState(false);
+  const [peerProfileVisible, setPeerProfileVisible] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listRef = useRef<FlashList<any>>(null);
   const listMeasuredRef = useRef(false);
@@ -162,6 +165,13 @@ export function ChatScreen({
   }, [conversationId]);
 
   const { data, loading, error, refetch } = useQuery(MESSAGES_QUERY, { variables: { conversationId } });
+
+  // Peer details for the header avatar sheet. Shares Apollo's cache with any
+  // other USER_QUERY call for the same id, so opening the sheet is instant.
+  const { data: peerData } = useQuery(USER_QUERY, {
+    variables: { id: peerId },
+    skip: !peerId,
+  });
   const [sendMessage] = useMutation(SEND_MESSAGE);
   const [toggleReaction] = useMutation(TOGGLE_REACTION);
   const [setTyping] = useMutation(TYPING);
@@ -655,25 +665,43 @@ export function ChatScreen({
     >
       <AmbientBackground />
 
+      <PeerProfileModal
+        visible={peerProfileVisible}
+        onClose={() => setPeerProfileVisible(false)}
+        peer={peerData?.user ?? null}
+        fallbackName={peerName}
+        fallbackAvatarUrl={peerAvatarUrl}
+        fallbackIsOnline={peerIsOnline}
+      />
+
       {/* Top Navigation Bar */}
       <View style={[styles.chatTopBar, isDark && styles.chatTopBarDark, { paddingTop: insets.top + 6 }]}>
         <Pressable style={styles.backLink} onPress={() => navigation?.goBack()} hitSlop={8}>
           <ChevronLeft size={22} color={isDark ? '#72FE88' : colors.primary} />
           <Text style={[styles.backLinkText, isDark && styles.backLinkTextDark]}>Conversation</Text>
         </Pressable>
-        <Pressable onPress={() => navigation?.navigate('Settings')}>
+        {/* Opens the peer's profile, not your own settings. */}
+        <Pressable
+          onPress={() => setPeerProfileVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${peerName ?? 'contact'} profile`}
+        >
           <Avatar uri={peerAvatarUrl} name={peerName} size={36} isOnline={peerIsOnline} />
         </Pressable>
       </View>
 
-      {/* FriendGate™ Protected Security Banner */}
-      <View style={[styles.securityBanner, isDark && styles.securityBannerDark]}>
-        <View style={styles.securityBannerLeft}>
-          <Shield size={14} color="#0058BC" strokeWidth={2.2} />
-          <Text style={styles.securityBannerTitle}>FriendGate™ Protected</Text>
+      {/* Only shown when the other person actually turned friends-only on. This
+          used to be an always-visible "Mutual friends verified" badge, which
+          the app never checked. */}
+      {peerData?.user?.friendGated && (
+        <View style={[styles.securityBanner, isDark && styles.securityBannerDark]}>
+          <View style={styles.securityBannerLeft}>
+            <Shield size={14} color="#0058BC" strokeWidth={2.2} />
+            <Text style={styles.securityBannerTitle}>Friends only</Text>
+          </View>
+          <Text style={styles.securityBannerSub}>They accept messages from friends</Text>
         </View>
-        <Text style={styles.securityBannerSub}>Mutual friends verified</Text>
-      </View>
+      )}
 
       {/* User Info Bar with Call Actions */}
       <View style={[styles.userInfoBar, isDark && styles.userInfoBarDark]}>

@@ -1,0 +1,1 @@
+1. Back up  android/app/chatly-release.keystore  +  android/keystore.properties  and the password  ChatlyRel_2026_9fK3xQ7wB2 . With no Play App Signing, a lost key means no future update can ever install over an existing one.

@@ -36,7 +36,10 @@ export class UsersService {
     });
   }
 
-  updateProfile(userId: string, data: { name?: string; bio?: string; avatarUrl?: string }) {
+  updateProfile(
+    userId: string,
+    data: { name?: string; bio?: string; avatarUrl?: string; friendGated?: boolean },
+  ) {
     return this.prisma.user.update({ where: { id: userId }, data });
   }
 

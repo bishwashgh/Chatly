@@ -42,6 +42,20 @@ export const FRIENDS_STATE_QUERY = gql`
   }
 `;
 
+// Focused query for the Blocked Contacts screen; FRIENDS_STATE_QUERY bundles
+// this with friends and requests, which that screen does not need.
+export const BLOCKED_USERS_QUERY = gql`
+  query BlockedUsers {
+    blockedUsers {
+      id
+      name
+      username
+      avatarUrl
+      isOnline
+    }
+  }
+`;
+
 export const SEND_FRIEND_REQUEST = gql`
   mutation SendFriendRequest($userId: ID!) {
     sendFriendRequest(userId: $userId) {

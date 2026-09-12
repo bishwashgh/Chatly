@@ -1,7 +1,7 @@
 import { gql } from '@apollo/client';
 
 const USER_FIELDS = `
-  id email username name bio avatarUrl isOnline isActive
+  id email username name bio avatarUrl isOnline isActive friendGated createdAt
 `;
 
 export const ME_QUERY = gql`query Me { me { ${USER_FIELDS} } }`;

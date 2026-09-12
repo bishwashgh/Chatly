@@ -20,6 +20,7 @@ export const UPDATE_PROFILE = gql`
       name
       bio
       avatarUrl
+      friendGated
     }
   }
 `;
@@ -41,6 +42,7 @@ export const USER_QUERY = gql`
       isOnline
       isActive
       lastSeen
+      friendGated
     }
   }
 `;

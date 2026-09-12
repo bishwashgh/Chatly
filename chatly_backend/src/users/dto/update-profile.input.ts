@@ -10,4 +10,12 @@ export class UpdateProfileInput {
 
   @Field({ nullable: true })
   avatarUrl?: string;
+
+  /**
+   * Privacy setting rather than a profile field, but it lives here so the
+   * existing updateProfile mutation stays the single write path for the User
+   * record and the client can reuse its cache entry.
+   */
+  @Field({ nullable: true })
+  friendGated?: boolean;
 }

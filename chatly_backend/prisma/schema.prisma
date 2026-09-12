@@ -45,6 +45,8 @@ model User {
   passwordHash   String?
   isOnline       Boolean  @default(false)
   isActive       Boolean  @default(true)
+  /// When true, only accepted friends may send this user a direct message.
+  friendGated    Boolean  @default(false)
   lastSeen       DateTime @default(now())
   refreshToken   String?
   signupCodeHash String?

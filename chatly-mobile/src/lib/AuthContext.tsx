@@ -5,7 +5,7 @@ import { LOGIN_WITH_GOOGLE, ME_QUERY, SIGN_IN, VERIFY_SIGNUP } from '../graphql/
 import { signInWithGoogle, signOutGoogle } from './googleAuth';
 import { setAuthFailureHandler } from './apolloClient';
 
-export type AuthUser = { id: string; email: string; username: string; name: string; bio?: string; avatarUrl?: string; isOnline?: boolean; lastSeen?: string; createdAt?: string; isActive?: boolean };
+export type AuthUser = { id: string; email: string; username: string; name: string; bio?: string; avatarUrl?: string; isOnline?: boolean; lastSeen?: string; createdAt?: string; isActive?: boolean; friendGated?: boolean };
 type AuthContextValue = {
   currentUser: AuthUser | null;
   isLoading: boolean;

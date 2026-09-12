@@ -26,6 +26,10 @@ export class User {
   @Field()
   isActive: boolean;
 
+  /** When true, only accepted friends may send this user a direct message. */
+  @Field()
+  friendGated: boolean;
+
   @Field()
   lastSeen: Date;
 
