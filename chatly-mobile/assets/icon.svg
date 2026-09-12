@@ -1,43 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
+    <!-- Brand green, matching lib/theme.ts gradients.primary -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4A6CF7"/>
-      <stop offset="100%" stop-color="#34C1B0"/>
+      <stop offset="0%" stop-color="#00591F"/>
+      <stop offset="55%" stop-color="#006E28"/>
+      <stop offset="100%" stop-color="#34C759"/>
     </linearGradient>
-    <linearGradient id="bubbleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#F2F6FE"/>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00873A"/>
+      <stop offset="100%" stop-color="#00591F"/>
     </linearGradient>
-    <filter id="softGlow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#182747" flood-opacity="0.18"/>
-    </filter>
+    <radialGradient id="glow" cx="26%" cy="18%" r="62%">
+      <stop offset="0%" stop-color="#72FE88" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#72FE88" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="shade" cx="82%" cy="88%" r="70%">
+      <stop offset="0%" stop-color="#00290C" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#00290C" stop-opacity="0"/>
+    </radialGradient>
   </defs>
 
-  <!-- Full-bleed background with diagonal indigo-teal gradient -->
+  <!-- Background -->
   <rect width="1024" height="1024" fill="url(#bgGrad)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <rect width="1024" height="1024" fill="url(#shade)"/>
 
-  <!-- Subtle ambient top-left highlight -->
-  <circle cx="200" cy="180" r="320" fill="#FFFFFF" opacity="0.09"/>
+  <!-- Chat bubble with a tail -->
+  <path d="M 360,236 H 664 A 132,132 0 0 1 796,368 V 516 A 132,132 0 0 1 664,648 H 476 L 316,800 Q 296,818 296,790 V 648 A 132,132 0 0 1 360,236 Z"
+        fill="#FFFFFF"/>
 
-  <!-- Main Speech Bubble Symbol -->
-  <g filter="url(#softGlow)">
-    <!-- Speech bubble body -->
-    <path d="M 512,232 C 346.3,232 212,352.8 212,502 C 212,568.2 238.2,628.9 282.5,677.3 L 246,804 C 243.2,813.8 253.2,822.4 262.3,817.5 L 401.4,742.6 C 436.8,754.9 473.8,762 512,762 C 677.7,762 812,641.2 812,502 C 812,352.8 677.7,232 512,232 Z" fill="url(#bubbleGrad)"/>
-    
-    <!-- Overlapping Friends Icon Inside Bubble -->
-    <!-- Left Friend (slightly smaller, overlapping) -->
-    <circle cx="436" cy="442" r="54" fill="#4A6CF7"/>
-    <path d="M 334,576 C 334,524 380,498 436,498 C 492,498 538,524 538,576 Z" fill="#4A6CF7"/>
+  <!-- Shield: friends-gated protection -->
+  <path d="M 512,330 L 622,374 V 462 C 622,540 570,594 512,630 C 454,594 402,540 402,462 V 374 Z"
+        fill="url(#shieldGrad)"/>
 
-    <!-- Right Friend (accent teal, in front) -->
-    <!-- Outer cutout ring for clean contrast between figures -->
-    <circle cx="580" cy="426" r="66" fill="#FFFFFF"/>
-    <path d="M 466,576 C 466,516 516,482 580,482 C 644,482 694,516 694,576 Z" fill="#FFFFFF"/>
-    
-    <circle cx="580" cy="426" r="54" fill="#34C1B0"/>
-    <path d="M 478,576 C 478,524 524,494 580,494 C 636,494 682,524 682,576 Z" fill="#34C1B0"/>
-
-    <!-- Small heart / connection accent between them -->
-    <circle cx="512" cy="386" r="14" fill="#4A6CF7" opacity="0.85"/>
-  </g>
+  <!-- Check mark -->
+  <path d="M 462,470 L 500,508 L 568,432"
+        fill="none" stroke="#FFFFFF" stroke-width="30"
+        stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

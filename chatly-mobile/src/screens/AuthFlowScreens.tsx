@@ -30,6 +30,7 @@ import {
   User,
 } from 'lucide-react-native';
 import { AuthLayout, authStyles } from '../components/AuthLayout';
+import { PrimaryButton } from '../components/PrimaryButton';
 import { useAuth } from '../lib/AuthContext';
 import {
   REQUEST_PASSWORD_RESET,
@@ -244,24 +245,13 @@ export function SignInScreen({ navigation }: Props) {
         {error ? <Text style={authStyles.errorText}>{error}</Text> : null}
 
         {/* Sign In Button */}
-        <Pressable
-          style={({ pressed }) => [
-            authStyles.primaryButton,
-            (busy || googleBusy) && styles.disabledBtn,
-            pressed && styles.btnPressed,
-          ]}
+        <PrimaryButton
+          label="Sign In"
           onPress={submit}
+          loading={busy}
           disabled={busy || googleBusy}
-        >
-          {busy ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <>
-              <Text style={authStyles.primaryButtonText}>Sign In</Text>
-              <ArrowRight size={18} color="#FFFFFF" />
-            </>
-          )}
-        </Pressable>
+          icon={<ArrowRight size={18} color="#FFFFFF" />}
+        />
 
         {/* Divider */}
         <View style={authStyles.dividerRow}>
@@ -471,24 +461,14 @@ export function SignUpScreen({ navigation }: Props) {
         {error ? <Text style={authStyles.errorText}>{error}</Text> : null}
 
         {/* Create Account Button */}
-        <Pressable
-          style={({ pressed }) => [
-            authStyles.primaryButton,
-            (busy || googleBusy) && styles.disabledBtn,
-            pressed && styles.btnPressed,
-          ]}
+        <PrimaryButton
+          label="Create Secure Account"
           onPress={submit}
+          loading={busy}
           disabled={busy || googleBusy}
-        >
-          {busy ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <>
-              <Text style={authStyles.primaryButtonText}>Create Secure Account</Text>
-              <ArrowRight size={18} color="#FFFFFF" />
-            </>
-          )}
-        </Pressable>
+          icon={<ArrowRight size={18} color="#FFFFFF" />}
+          style={styles.primaryCta}
+        />
 
         {/* Divider */}
         <View style={authStyles.dividerRow}>
@@ -627,21 +607,12 @@ export function OtpScreen({ navigation, route }: any) {
         {error ? <Text style={authStyles.errorText}>{error}</Text> : null}
 
         {/* Verify Button */}
-        <Pressable
-          style={({ pressed }) => [
-            authStyles.primaryButton,
-            (busy || code.length !== 6) && styles.disabledBtn,
-            pressed && styles.btnPressed,
-          ]}
+        <PrimaryButton
+          label="Verify & Proceed"
           onPress={submit}
+          loading={busy}
           disabled={busy || code.length !== 6}
-        >
-          {busy ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <Text style={authStyles.primaryButtonText}>Verify & Proceed</Text>
-          )}
-        </Pressable>
+        />
 
         {/* Resend */}
         <View style={styles.resendRow}>
@@ -731,21 +702,12 @@ export function ForgotPasswordScreen({ navigation }: Props) {
 
         {error ? <Text style={authStyles.errorText}>{error}</Text> : null}
 
-        <Pressable
-          style={({ pressed }) => [
-            authStyles.primaryButton,
-            busy && styles.disabledBtn,
-            pressed && styles.btnPressed,
-          ]}
+        <PrimaryButton
+          label="Send Code"
           onPress={submit}
+          loading={busy}
           disabled={busy}
-        >
-          {busy ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <Text style={authStyles.primaryButtonText}>Send Code</Text>
-          )}
-        </Pressable>
+        />
       </View>
     </AuthLayout>
   );
@@ -878,27 +840,24 @@ export function ResetPasswordScreen({ navigation, route }: any) {
         {error ? <Text style={authStyles.errorText}>{error}</Text> : null}
         {toast ? <Text style={styles.toastText}>{toast}</Text> : null}
 
-        <Pressable
-          style={({ pressed }) => [
-            authStyles.primaryButton,
-            (busy || code.length !== 6 || !!toast) && styles.disabledBtn,
-            pressed && styles.btnPressed,
-          ]}
+        <PrimaryButton
+          label="Reset Password"
           onPress={submit}
+          loading={busy}
           disabled={busy || code.length !== 6 || !!toast}
-        >
-          {busy ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <Text style={authStyles.primaryButtonText}>Reset Password</Text>
-          )}
-        </Pressable>
+        />
       </View>
     </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  // Extra breathing room around the signup CTA: it sits directly under the
+  // terms checkbox and the error text, which made it read as part of the form.
+  primaryCta: {
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
   heroBadgeLarge: {
     width: 80,
     height: 80,

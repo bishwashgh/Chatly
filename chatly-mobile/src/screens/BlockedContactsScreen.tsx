@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, ShieldBan, Unlock } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Avatar } from '../components/Avatar';
+import { SkeletonList } from '../components/SkeletonLoader';
 import { colors, radii, shadows, spacing } from '../lib/theme';
 import { useTheme } from '../lib/ThemeContext';
 import {
@@ -103,9 +104,10 @@ export function BlockedContactsScreen({ navigation }: any) {
       </View>
 
       {loading && !data ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <SkeletonList
+          count={5}
+          style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}
+        />
       ) : error ? (
         <View style={styles.centered}>
           <Text style={[styles.emptyTitle, isDark && styles.textDark]}>

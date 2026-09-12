@@ -13,6 +13,20 @@ export const SEARCH_USERS = gql`
   }
 `;
 
+// People to connect with: active accounts you are not already friends with and
+// have not blocked. Backed by UsersService.suggested.
+export const SUGGESTED_USERS_QUERY = gql`
+  query SuggestedUsers($limit: Int) {
+    suggestedUsers(limit: $limit) {
+      id
+      name
+      username
+      avatarUrl
+      isOnline
+    }
+  }
+`;
+
 export const UPDATE_PROFILE = gql`
   mutation UpdateProfile($input: UpdateProfileInput!) {
     updateProfile(input: $input) {

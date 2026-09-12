@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00873A"/>
+      <stop offset="100%" stop-color="#00591F"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Foreground only: the brand green comes from android.adaptiveIcon.backgroundColor.
+       The glyph stays inside the safe zone so no launcher mask crops the tail or shield. -->
+  <path d="M 360,236 H 664 A 132,132 0 0 1 796,368 V 516 A 132,132 0 0 1 664,648 H 476 L 316,800 Q 296,818 296,790 V 648 A 132,132 0 0 1 360,236 Z"
+        fill="#FFFFFF"/>
+
+  <path d="M 512,330 L 622,374 V 462 C 622,540 570,594 512,630 C 454,594 402,540 402,462 V 374 Z"
+        fill="url(#shieldGrad)"/>
+
+  <path d="M 462,470 L 500,508 L 568,432"
+        fill="none" stroke="#FFFFFF" stroke-width="30"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

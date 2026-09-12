@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { User } from './models/user.model';
@@ -26,6 +26,15 @@ export class UsersResolver {
   @Query(() => [User])
   searchUsers(@CurrentUser() user: User, @Args('query') query: string) {
     return this.usersService.search(query, user.id);
+  }
+
+  @UseGuards(GqlAuthGuard)
+  @Query(() => [User])
+  suggestedUsers(
+    @CurrentUser() user: User,
+    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
+  ) {
+    return this.usersService.suggested(user.id, limit ?? 12);
   }
 
   @UseGuards(GqlAuthGuard)

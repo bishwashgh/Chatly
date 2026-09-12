@@ -31,11 +31,12 @@ import {
   REMOVE_FRIEND,
   BLOCK_USER,
 } from '../graphql/friends.gql';
-import { SEARCH_USERS } from '../graphql/users.gql';
+import { SEARCH_USERS, SUGGESTED_USERS_QUERY } from '../graphql/users.gql';
 import { CREATE_DIRECT_CONVERSATION } from '../graphql/conversations.gql';
 import { useAuth } from '../lib/AuthContext';
 import { Avatar } from '../components/Avatar';
 import { FloatingDock } from '../components/FloatingDock';
+import { SkeletonList } from '../components/SkeletonLoader';
 import { colors, radii, shadows, spacing } from '../lib/theme';
 import { QrScannerModal } from '../components/QrScannerModal';
 import { useTheme } from '../lib/ThemeContext';
@@ -53,6 +54,7 @@ export function FriendsScreen({
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const { data, loading, refetch } = useQuery(FRIENDS_STATE_QUERY);
+  const { data: suggestedData } = useQuery(SUGGESTED_USERS_QUERY, { variables: { limit: 12 } });
   const [search, setSearch] = useState('');
   const [searchUsers, { data: searchData, loading: searching }] = useLazyQuery(SEARCH_USERS);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export function FriendsScreen({
   const friends = data?.friends ?? [];
   const incoming = data?.friendRequests ?? [];
   const outgoing = data?.sentFriendRequests ?? [];
+  const suggestions = suggestedData?.suggestedUsers ?? [];
 
   const searchResults = useMemo(() => {
     const results = searchData?.searchUsers ?? [];
@@ -89,7 +92,12 @@ export function FriendsScreen({
   const run = async (mutation: any, userId: string, successNote?: string) => {
     setBusyId(userId);
     try {
-      await mutation({ variables: { userId }, refetchQueries: [{ query: FRIENDS_STATE_QUERY }] });
+      await mutation({
+        variables: { userId },
+        // Suggestions exclude anyone with a friendship row, so a request has to
+        // refresh that list too or the person stays in it.
+        refetchQueries: [{ query: FRIENDS_STATE_QUERY }, { query: SUGGESTED_USERS_QUERY }],
+      });
       if (successNote) Alert.alert('Done', successNote);
     } catch (e) {
       console.error('friend action failed:', e);
@@ -320,9 +328,7 @@ export function FriendsScreen({
 
           <View style={[styles.groupedCard, styles.connectionsCard, isDark && styles.cardDark]}>
             {loading ? (
-              <View style={styles.loadingBox}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
+              <SkeletonList count={4} style={{ padding: spacing.md }} />
             ) : friends.length === 0 ? (
               <View style={styles.emptyFriendsBox}>
                 <Text style={[styles.emptyHint, isDark && styles.textSecondaryDark]}>
@@ -370,69 +376,66 @@ export function FriendsScreen({
           </View>
         </View>
 
-        {/* Suggested Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, isDark && styles.textDark]}>Suggested</Text>
-            <Text style={styles.seeAllText}>Discover</Text>
-          </View>
-
-          <View style={styles.suggestedGrid}>
-            <View style={[styles.suggestedCard, isDark && styles.cardDark]}>
-              <Avatar
-                uri="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
-                name="Oliver Queen"
-                size={56}
-              />
-              <Text style={[styles.suggestedName, isDark && styles.textDark]} numberOfLines={1}>
-                Oliver Queen
-              </Text>
-              <Text style={styles.suggestedSub} numberOfLines={1}>
-                4 mutual friends
-              </Text>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.suggestedConnectBtn,
-                  isDark && styles.suggestedConnectBtnDark,
-                  pressed && styles.btnPressed,
-                ]}
-                onPress={() => Alert.alert('Request Sent', 'Connection request sent to Oliver Queen')}
-              >
-                <UserPlus size={14} color={isDark ? '#53E16F' : colors.primary} />
-                <Text style={[styles.suggestedConnectText, isDark && styles.suggestedConnectTextDark]}>
-                  Connect
-                </Text>
-              </Pressable>
+        {/* Suggested Section - real accounts, no placeholders */}
+        {suggestions.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, isDark && styles.textDark]}>Suggested</Text>
+              <Text style={styles.seeAllText}>People you may know</Text>
             </View>
 
-            <View style={[styles.suggestedCard, isDark && styles.cardDark]}>
-              <Avatar
-                uri="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200"
-                name="Chloe Decker"
-                size={56}
-              />
-              <Text style={[styles.suggestedName, isDark && styles.textDark]} numberOfLines={1}>
-                Chloe Decker
-              </Text>
-              <Text style={styles.suggestedSub} numberOfLines={1}>
-                From your contacts
-              </Text>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.suggestedConnectBtn,
-                  isDark && styles.suggestedConnectBtnDark,
-                  pressed && styles.btnPressed,
-                ]}
-                onPress={() => Alert.alert('Request Sent', 'Connection request sent to Chloe Decker')}
-              >
-                <UserPlus size={14} color={isDark ? '#53E16F' : colors.primary} />
-                <Text style={[styles.suggestedConnectText, isDark && styles.suggestedConnectTextDark]}>
-                  Connect
-                </Text>
-              </Pressable>
-            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.suggestedRow}
+            >
+              {suggestions.map((user: any) => (
+                <View key={user.id} style={[styles.suggestedCard, isDark && styles.cardDark]}>
+                  <Avatar
+                    uri={user.avatarUrl}
+                    name={user.name}
+                    size={56}
+                    isOnline={user.isOnline}
+                  />
+                  <Text
+                    style={[styles.suggestedName, isDark && styles.textDark]}
+                    numberOfLines={1}
+                  >
+                    {user.name}
+                  </Text>
+                  <Text
+                    style={[styles.suggestedSub, isDark && styles.textSecondaryDark]}
+                    numberOfLines={1}
+                  >
+                    @{user.username}
+                  </Text>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.suggestedConnectBtn,
+                      busy(user.id) && styles.connectBtnBusy,
+                      pressed && styles.btnPressed,
+                    ]}
+                    onPress={() =>
+                      run(sendRequest, user.id, `Friend request sent to ${user.name}`)
+                    }
+                    disabled={busy(user.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Connect with ${user.name}`}
+                  >
+                    {busy(user.id) ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <UserPlus size={15} color="#FFFFFF" strokeWidth={2.6} />
+                        <Text style={styles.suggestedConnectText}>Connect</Text>
+                      </>
+                    )}
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
           </View>
-        </View>
+        )}
       </ScrollView>
 
       {/* Bottom Dock */}
@@ -644,12 +647,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  suggestedGrid: {
+  suggestedRow: {
     flexDirection: 'row',
     gap: 12,
+    paddingRight: spacing.md,
   },
   suggestedCard: {
-    flex: 1,
+    // Fixed width so the horizontal list scrolls evenly instead of squeezing
+    // cards to fit the screen.
+    width: 150,
     backgroundColor: '#F4F3F8',
     borderRadius: 20,
     padding: 16,
@@ -672,26 +678,30 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     textAlign: 'center',
   },
+  // Filled and shadowed so it reads as a button, not as a coloured label.
   suggestedConnectBtn: {
     width: '100%',
-    height: 36,
+    height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(0, 110, 40, 0.09)',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    shadowColor: '#004D1A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  suggestedConnectBtnDark: {
-    backgroundColor: 'rgba(83, 225, 111, 0.15)',
+  connectBtnBusy: {
+    opacity: 0.6,
   },
   suggestedConnectText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  suggestedConnectTextDark: {
-    color: '#53E16F',
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
   connectionsCard: {
     backgroundColor: '#FFFFFF',

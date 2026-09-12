@@ -36,6 +36,44 @@ export class UsersService {
     });
   }
 
+  /**
+   * People the user could connect with: active accounts they are not already
+   * friends with (pending requests included), have not blocked, and who have
+   * been active most recently. Powers the App's "Suggested" section, which
+   * previously showed invented people.
+   */
+  async suggested(userId: string, limit = 12) {
+    const [blocks, friendships] = await Promise.all([
+      this.prisma.blockedUser.findMany({
+        where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+        select: { blockerId: true, blockedId: true },
+      }),
+      this.prisma.friendship.findMany({
+        where: { OR: [{ requesterId: userId }, { addresseeId: userId }] },
+        select: { requesterId: true, addresseeId: true },
+      }),
+    ]);
+
+    const excluded = new Set<string>([userId]);
+    blocks.forEach((b) => {
+      excluded.add(b.blockerId);
+      excluded.add(b.blockedId);
+    });
+    friendships.forEach((f) => {
+      excluded.add(f.requesterId);
+      excluded.add(f.addresseeId);
+    });
+
+    return this.prisma.user.findMany({
+      where: {
+        id: { notIn: [...excluded] },
+        isActive: true,
+      },
+      orderBy: { lastSeen: 'desc' },
+      take: limit,
+    });
+  }
+
   updateProfile(
     userId: string,
     data: { name?: string; bio?: string; avatarUrl?: string; friendGated?: boolean },

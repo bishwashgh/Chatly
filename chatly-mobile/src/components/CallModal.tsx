@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useSubscription } from '@apollo/client';
 import { Image } from 'expo-image';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
-import { PhoneOff, Phone, Mic, MicOff, Video as VideoIcon, Camera, RotateCcw, Volume2, VolumeX } from 'lucide-react-native';
+import { PhoneOff, Phone, Mic, MicOff, Video as VideoIcon, Camera, RotateCcw, Volume2, Volume1 } from 'lucide-react-native';
 import {
+  AudioSession,
   LiveKitRoom,
   useTracks,
   VideoTrack,
@@ -21,6 +24,7 @@ import {
   UPDATE_CALL_STATUS,
 } from '../graphql/calls.gql';
 import { useCall, ActiveCall } from '../lib/CallContext';
+import { colors } from '../lib/theme';
 
 const configuredLiveKitUrl = process.env.EXPO_PUBLIC_LIVEKIT_URL;
 const DEFAULT_LIVEKIT_URL = 'wss://chatly-q41rks5z.livekit.cloud';
@@ -46,6 +50,20 @@ function resolveLiveKitUrl(): string {
 const LIVEKIT_URL = resolveLiveKitUrl();
 console.log('[CallModal] LiveKit URL configured:', LIVEKIT_URL);
 
+// Bundled ringtone, looped while an incoming call is ringing.
+const RINGTONE = require('../../assets/ringtone.wav');
+
+// LiveKit addresses audio outputs differently per platform: Android can pick
+// the physical device, while iOS only exposes a default-vs-forced-speaker
+// switch (Bluetooth/AirPlay there go through the system route picker).
+const SPEAKER_OUTPUT = Platform.OS === 'ios' ? 'force_speaker' : 'speaker';
+const EARPIECE_OUTPUT = Platform.OS === 'ios' ? 'default' : 'earpiece';
+const NOTICE_TIMEOUT_MS = 1800;
+// The audio session starts asynchronously with the room, and
+// AudioSession.getAudioOutputs() reports nothing until it has. Poll briefly.
+const AUDIO_ROUTE_RETRIES = 6;
+const AUDIO_ROUTE_RETRY_MS = 400;
+
 type CallModalProps = {
   currentUserId: string;
 };
@@ -66,9 +84,14 @@ function VideoCallGrid() {
 
   return (
     <View style={styles.grid}>
-      {remoteTracks.length > 0 ? (
-        remoteTracks.map((trackRef) => (
-          <VideoTrack key={trackRef.publication.trackSid} trackRef={trackRef} style={styles.videoTile} />
+      {remoteTracks.length > 0 ? (            remoteTracks.map((trackRef) => (
+          <VideoTrack
+            key={trackRef.publication.trackSid}
+            trackRef={trackRef}
+            style={styles.videoTile}
+            // Someone else's camera is never mirrored.
+            mirror={false}
+          />
         ))
       ) : (
         <View style={styles.waitingForPeer}>
@@ -88,7 +111,9 @@ function LocalVideoPreview() {
   return (
     <View style={styles.selfView}>
       {localTrack && isTrackReference(localTrack) ? (
-        <VideoTrack trackRef={localTrack} style={styles.selfVideoTile} />
+        // Explicitly un-mirrored: the self view should show what the other
+        // person actually receives, not a mirror image.
+        <VideoTrack trackRef={localTrack} style={styles.selfVideoTile} mirror={false} />
       ) : (
         <VideoIcon size={18} color="rgba(255,255,255,0.72)" />
       )}
@@ -182,20 +207,166 @@ type CallRoomContentProps = {
   setIsMuted: (muted: boolean) => void;
   elapsed: number;
   handleEnd: () => void;
+  /** Briefly surface a one-line message over the call UI. */
+  onNotice: (message: string | null) => void;
 };
 
-function CallRoomContent({ call, phase, setPhase, isMuted, setIsMuted, elapsed, handleEnd }: CallRoomContentProps) {
+function CallRoomContent({ call, phase, setPhase, isMuted, setIsMuted, elapsed, handleEnd, onNotice }: CallRoomContentProps) {
   const isVideo = call.callType === 'VIDEO';
   const [cameraEnabled, setCameraEnabled] = useState(true);
-  const [speakerEnabled, setSpeakerEnabled] = useState(false);
+  // Video calls start on the loudspeaker, audio calls on the earpiece - the
+  // phone-dialer convention. The effect below applies this to the real audio
+  // session on connect, so the switch always reflects where sound is going.
+  const [speakerEnabled, setSpeakerEnabled] = useState(isVideo);
+  const [usingFrontCamera, setUsingFrontCamera] = useState(true);
   const tracks = useTracks([isVideo ? Track.Source.Camera : Track.Source.Microphone]);
   const hasRemote = tracks.some((t) => !t.participant?.isLocal);
+
+  /**
+   * Flip between the front and back camera.
+   *
+   * livekit-client 2.22 has no switchCamera on LocalParticipant, so this goes
+   * one level down to the underlying react-native-webrtc MediaStreamTrack,
+   * which exposes the native `_switchCamera()`.
+   */
+  const switchCamera = () => {
+    const localRef = tracks.find(
+      (trackRef) => isTrackReference(trackRef) && trackRef.participant?.isLocal,
+    );
+    const mediaStream = (localRef?.publication?.track as any)?.mediaStream;
+    const streamTrack = mediaStream?.getVideoTracks?.()?.[0];
+
+    if (!streamTrack?._switchCamera) {
+      console.warn('[CallModal] Camera switching is not available on this track');
+      return;
+    }
+
+    streamTrack._switchCamera();
+    setUsingFrontCamera((prev) => !prev);
+    Haptics.selectionAsync?.();
+  };
 
   useEffect(() => {
     if (hasRemote) setPhase('connected');
   }, [hasRemote, setPhase]);
 
   const isConnected = phase === 'connected';
+
+  // Mirrors speakerEnabled for effects that must not re-run when it changes.
+  const desiredSpeakerRef = useRef(speakerEnabled);
+  // Set once this call's output has been decided, so later re-runs (the mic
+  // toggle below) never repeat the one-time headset detection.
+  const routeResolvedRef = useRef(false);
+  const noticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Show a short-lived message over the call UI. */
+  const notify = useCallback(
+    (message: string) => {
+      onNotice(message);
+      if (noticeTimeoutRef.current) clearTimeout(noticeTimeoutRef.current);
+      noticeTimeoutRef.current = setTimeout(() => {
+        noticeTimeoutRef.current = null;
+        onNotice(null);
+      }, NOTICE_TIMEOUT_MS);
+    },
+    [onNotice],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimeoutRef.current) clearTimeout(noticeTimeoutRef.current);
+    };
+  }, []);
+
+  /**
+   * Point the audio session at the loudspeaker or the earpiece.
+   *
+   * Resolves false when the device offers no such output, so callers can leave
+   * the switch alone instead of showing a control that does nothing.
+   */
+  const applyAudioRoute = useCallback(async (toSpeaker: boolean): Promise<boolean> => {
+    const target = toSpeaker ? SPEAKER_OUTPUT : EARPIECE_OUTPUT;
+    try {
+      const outputs = await AudioSession.getAudioOutputs();
+      if (!outputs.includes(target)) {
+        console.warn(`[CallModal] Audio output "${target}" is not available`, outputs);
+        return false;
+      }
+      await AudioSession.selectAudioOutput(target);
+      return true;
+    } catch (error) {
+      console.warn('[CallModal] Could not switch audio output:', error);
+      return false;
+    }
+  }, []);
+
+  // Pick the route once per call, after the room has started the audio session
+  // (getAudioOutputs needs an active session). A connected headset wins: audio
+  // is already going somewhere the user deliberately plugged in, so leave it.
+  useEffect(() => {
+    if (!isConnected || routeResolvedRef.current) return;
+    let cancelled = false;
+
+    (async () => {
+      for (let attempt = 0; attempt < AUDIO_ROUTE_RETRIES; attempt++) {
+        let outputs: string[] = [];
+        try {
+          outputs = await AudioSession.getAudioOutputs();
+        } catch (error) {
+          console.warn('[CallModal] Could not read audio outputs:', error);
+        }
+        if (cancelled || routeResolvedRef.current) return;
+
+        if (outputs.length > 0) {
+          routeResolvedRef.current = true;
+
+          if (outputs.includes('bluetooth') || outputs.includes('headset')) {
+            desiredSpeakerRef.current = false;
+            setSpeakerEnabled(false);
+            return;
+          }
+
+          desiredSpeakerRef.current = isVideo;
+          setSpeakerEnabled(isVideo);
+          await applyAudioRoute(isVideo);
+          return;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, AUDIO_ROUTE_RETRY_MS));
+      }
+
+      // Session never reported any outputs. Leave the platform default alone
+      // rather than applying a route we could not verify.
+      if (!cancelled) routeResolvedRef.current = true;
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, isVideo, applyAudioRoute]);
+
+  // Muting and unmuting re-configures the audio session, which can reset the
+  // route to the system default. Re-assert whatever the user last chose.
+  useEffect(() => {
+    if (!isConnected || !routeResolvedRef.current) return;
+    applyAudioRoute(desiredSpeakerRef.current);
+  }, [isMuted, isConnected, applyAudioRoute]);
+
+  /** Loudspeaker <-> earpiece, applied to the real audio session. */
+  const toggleSpeaker = () => {
+    const next = !speakerEnabled;
+    desiredSpeakerRef.current = next;
+    setSpeakerEnabled(next);
+    Haptics.selectionAsync?.();
+
+    applyAudioRoute(next).then((applied) => {
+      if (applied) return;
+      // Never claim a route the device refused.
+      desiredSpeakerRef.current = !next;
+      setSpeakerEnabled(!next);
+      notify(next ? 'Speaker unavailable on this device' : 'Earpiece unavailable on this device');
+    });
+  };
 
   return (
     <>
@@ -227,11 +398,26 @@ function CallRoomContent({ call, phase, setPhase, isMuted, setIsMuted, elapsed, 
                   {cameraEnabled ? <Camera size={24} color="#fff" /> : <VideoIcon size={24} color="#fff" />}
                 </Pressable>
               )}
-              <Pressable style={[styles.controlBtn, speakerEnabled && styles.activeControlBtn]} onPress={() => setSpeakerEnabled(!speakerEnabled)}>
-                {speakerEnabled ? <Volume2 size={24} color="#fff" /> : <VolumeX size={24} color="#fff" />}
+              <Pressable
+                style={[styles.controlBtn, speakerEnabled && styles.activeControlBtn]}
+                onPress={toggleSpeaker}
+                accessibilityRole="button"
+                accessibilityState={{ selected: speakerEnabled }}
+                accessibilityLabel={
+                  speakerEnabled ? 'Speaker on, switch to earpiece' : 'Speaker off, switch to loudspeaker'
+                }
+              >
+                {speakerEnabled ? <Volume2 size={24} color="#fff" /> : <Volume1 size={24} color="#fff" />}
               </Pressable>
               {isVideo && (
-                <Pressable style={styles.controlBtn} onPress={() => {}}>
+                <Pressable
+                  style={[styles.controlBtn, !usingFrontCamera && styles.activeControlBtn]}
+                  onPress={switchCamera}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    usingFrontCamera ? 'Switch to back camera' : 'Switch to front camera'
+                  }
+                >
                   <RotateCcw size={22} color="#fff" />
                 </Pressable>
               )}
@@ -381,6 +567,45 @@ export function CallModal({ currentUserId }: CallModalProps) {
     return () => clearInterval(interval);
   }, [phase]);
 
+  // Ring while an incoming call is waiting to be answered, and stop the moment
+  // it is answered, declined or ends. Only reachable while the app is running -
+  // see the note on notifications for calls that arrive with the app closed.
+  useEffect(() => {
+    if (phase !== 'incoming') return;
+
+    let cancelled = false;
+    let sound: Audio.Sound | null = null;
+
+    (async () => {
+      try {
+        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+        const created = await Audio.Sound.createAsync(RINGTONE, {
+          isLooping: true,
+          volume: 1.0,
+          shouldPlay: true,
+        });
+        if (cancelled) {
+          await created.sound.unloadAsync().catch(() => {});
+          return;
+        }
+        sound = created.sound;
+      } catch (error) {
+        console.warn('[CallModal] Could not start ringtone:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      const current = sound;
+      sound = null;
+      if (current) {
+        current.stopAsync().catch(() => {}).finally(() => {
+          current.unloadAsync().catch(() => {});
+        });
+      }
+    };
+  }, [phase]);
+
   // Never leave a timer running past unmount.
   useEffect(() => {
     return () => {
@@ -462,6 +687,7 @@ export function CallModal({ currentUserId }: CallModalProps) {
               setIsMuted={setIsMuted}
               elapsed={elapsed}
               handleEnd={handleEnd}
+              onNotice={setNotice}
             />
           </LiveKitRoom>
         )}
@@ -517,7 +743,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeControlBtn: { backgroundColor: '#4A6CF7' },
+  // Brand green, matching dockActive and the rest of the app's accents.
+  activeControlBtn: { backgroundColor: colors.primary },
   acceptBtn: { backgroundColor: '#22C55E' },
   declineBtn: { backgroundColor: '#EF4444' },
   hangupBtn: { backgroundColor: '#EF4444' },

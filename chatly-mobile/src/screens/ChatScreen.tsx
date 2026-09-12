@@ -42,7 +42,6 @@ import {
   RefreshCw,
   Reply,
   Trash2,
-  Shield,
   Download,
   FileText,
   X,
@@ -70,6 +69,7 @@ import { Avatar } from '../components/Avatar';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { useCall } from '../lib/CallContext';
+import { SkeletonMessages } from '../components/SkeletonLoader';
 import { colors, radii, shadows, spacing } from '../lib/theme';
 import { useTheme } from '../lib/ThemeContext';
 import { AttachmentSheet, AttachmentAction } from '../components/AttachmentSheet';
@@ -690,18 +690,6 @@ export function ChatScreen({
         </Pressable>
       </View>
 
-      {/* Only shown when the other person actually turned friends-only on. This
-          used to be an always-visible "Mutual friends verified" badge, which
-          the app never checked. */}
-      {peerData?.user?.friendGated && (
-        <View style={[styles.securityBanner, isDark && styles.securityBannerDark]}>
-          <View style={styles.securityBannerLeft}>
-            <Shield size={14} color="#0058BC" strokeWidth={2.2} />
-            <Text style={styles.securityBannerTitle}>Friends only</Text>
-          </View>
-          <Text style={styles.securityBannerSub}>They accept messages from friends</Text>
-        </View>
-      )}
 
       {/* User Info Bar with Call Actions */}
       <View style={[styles.userInfoBar, isDark && styles.userInfoBarDark]}>
@@ -753,10 +741,10 @@ export function ChatScreen({
         ListFooterComponent={peerTyping ? <View style={styles.typingBubble}><View style={styles.dot} /><View style={styles.dot} /><View style={styles.dot} /><Text style={styles.typingText}>Typing…</Text></View> : null}
         ListEmptyComponent={
           loading ? (
-            <View style={styles.stateBox}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.stateText}>Loading messages…</Text>
-            </View>
+            <SkeletonMessages
+              count={6}
+              style={{ paddingHorizontal: spacing.md, paddingTop: spacing.xl }}
+            />
           ) : error ? (
             <View style={styles.stateBox}>
               <Text style={styles.stateTitle}>Couldn’t load messages</Text>
@@ -902,34 +890,6 @@ const styles = StyleSheet.create({
   },
   backLinkTextDark: {
     color: '#72FE88',
-  },
-  securityBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(216, 226, 255, 0.45)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 88, 188, 0.08)',
-  },
-  securityBannerDark: {
-    backgroundColor: '#17243B',
-    borderBottomColor: 'rgba(216, 226, 255, 0.10)',
-  },
-  securityBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  securityBannerTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#004493',
-  },
-  securityBannerSub: {
-    fontSize: 11.5,
-    color: 'rgba(0, 68, 147, 0.8)',
   },
   userInfoBar: {
     flexDirection: 'row',

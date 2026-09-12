@@ -35,6 +35,7 @@ import { useAuth } from '../lib/AuthContext';
 import { Avatar } from '../components/Avatar';
 import { ProfileModal } from '../components/ProfileModal';
 import { FloatingDock } from '../components/FloatingDock';
+import { SkeletonList } from '../components/SkeletonLoader';
 import { colors, radii, shadows, spacing } from '../lib/theme';
 import { useTheme } from '../lib/ThemeContext';
 
@@ -371,12 +372,10 @@ export function ConversationsScreen({
 
         {/* Conversations List */}
         {loading ? (
-          <View style={styles.stateBox}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={[styles.stateText, isDark && styles.textSecondaryDark]}>
-              Loading conversations…
-            </Text>
-          </View>
+          <SkeletonList
+            count={6}
+            style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}
+          />
         ) : error ? (
           <View style={styles.stateBox}>
             <Text style={[styles.stateTitle, isDark && styles.textDark]}>

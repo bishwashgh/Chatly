@@ -12,6 +12,7 @@ import { ArrowRight, Check } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../lib/AuthContext';
+import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, radii, shadows, spacing } from '../lib/theme';
 import { useTheme } from '../lib/ThemeContext';
 
@@ -140,16 +141,12 @@ export function LoginScreen({ navigation }: { navigation: any }) {
               </Pressable>
             </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.emailButton,
-                pressed && styles.pressed,
-              ]}
+            <PrimaryButton
+              label="Sign In with email"
               onPress={() => navigation.navigate('SignIn')}
-            >
-              <Text style={styles.emailButtonText}>Sign In with email</Text>
-              <ArrowRight size={16} color="#FFFFFF" />
-            </Pressable>
+              icon={<ArrowRight size={17} color="#FFFFFF" />}
+              style={styles.emailCta}
+            />
 
             <Pressable
               style={styles.signupLink}
@@ -230,19 +227,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-  emailButton: {
-    width: '100%',
-    height: 50,
-    borderRadius: radii.md,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 6,
-    ...shadows.sm,
+  // Spacing only - the visual treatment comes from PrimaryButton so every CTA
+  // in the app matches.
+  emailCta: {
+    marginTop: 10,
   },
-  emailButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
   signupLink: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md },
   buttonHintText: { color: '#6D7B6B', fontSize: 13 },
   signupText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
