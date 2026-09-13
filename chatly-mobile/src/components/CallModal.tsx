@@ -91,6 +91,13 @@ function VideoCallGrid() {
             style={styles.videoTile}
             // Someone else's camera is never mirrored.
             mirror={false}
+            // RTCView on Android is a surface that sits above normal views, so
+            // the layers have to be assigned explicitly: remote video on the
+            // base layer, the self view at zOrder 1 (see LocalVideoPreview).
+            // Without this the other person's stream covers your own preview.
+            zOrder={0}
+            // Show the whole frame rather than cropping it to fill the tile.
+            objectFit="contain"
           />
         ))
       ) : (
@@ -102,6 +109,12 @@ function VideoCallGrid() {
   );
 }
 
+// The camera captures landscape frames (4:3 by default, 16:9 on many phones).
+// A portrait tile with `cover` scales the frame up until it fills the tile,
+// which crops it into a zoomed-in close-up - hence the landscape shape here.
+const SELF_VIEW_WIDTH = 118;
+const SELF_VIEW_ASPECT = 4 / 3;
+
 function LocalVideoPreview() {
   const tracks = useTracks([Track.Source.Camera]);
   const localTrack = tracks.find(
@@ -109,11 +122,24 @@ function LocalVideoPreview() {
   );
 
   return (
-    <View style={styles.selfView}>
+    <View
+      style={[
+        styles.selfView,
+        { width: SELF_VIEW_WIDTH, height: Math.round(SELF_VIEW_WIDTH / SELF_VIEW_ASPECT) },
+      ]}
+    >
       {localTrack && isTrackReference(localTrack) ? (
         // Explicitly un-mirrored: the self view should show what the other
         // person actually receives, not a mirror image.
-        <VideoTrack trackRef={localTrack} style={styles.selfVideoTile} mirror={false} />
+        <VideoTrack
+          trackRef={localTrack}
+          style={styles.selfVideoTile}
+          mirror={false}
+          // Above the remote layer - see the note in VideoCallGrid.
+          zOrder={1}
+          // `contain` keeps the full frame visible instead of cropping it.
+          objectFit="contain"
+        />
       ) : (
         <VideoIcon size={18} color="rgba(255,255,255,0.72)" />
       )}
@@ -700,7 +726,9 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: '#000000', paddingHorizontal: 24 },
   centerContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
   videoStage: { flex: 1, position: 'relative', backgroundColor: 'transparent' },
-  selfView: { position: 'absolute', right: 4, top: 16, width: 92, height: 124, borderRadius: 18, backgroundColor: 'rgba(28,28,30,0.88)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  // Width/height come from LocalVideoPreview so the tile can match the camera's
+  // landscape aspect ratio.
+  selfView: { position: 'absolute', right: 4, top: 16, borderRadius: 16, backgroundColor: 'rgba(28,28,30,0.88)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
   selfVideoTile: { ...StyleSheet.absoluteFillObject },
   selfViewText: { position: 'absolute', left: 8, bottom: 7, color: '#fff', fontSize: 11, fontWeight: '600' },
   ringHalo: {

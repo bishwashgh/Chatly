@@ -45,17 +45,25 @@ function SelectionParticles({ active, color }: { active: boolean; color: string 
     });
   }, [active, progress]);
 
-  const fade = (p: number) => (p < 0.5 ? p * 2 : (1 - p) * 2);
+  // The opacity curve (0 -> 1 halfway -> 0) is inlined rather than shared via a
+  // helper: a worklet runs on the UI thread and can only call other worklets, so
+  // a plain function from this scope would be an "Object is not a function"
+  // crash the moment the dock mounts.
+  const topStyle = useAnimatedStyle(() => {
+    const p = progress.value;
+    return {
+      opacity: p < 0.5 ? p * 2 : (1 - p) * 2,
+      transform: [{ translateY: -PARTICLE_TRAVEL * p }],
+    };
+  });
 
-  const topStyle = useAnimatedStyle(() => ({
-    opacity: fade(progress.value),
-    transform: [{ translateY: -PARTICLE_TRAVEL * progress.value }],
-  }));
-
-  const bottomStyle = useAnimatedStyle(() => ({
-    opacity: fade(progress.value),
-    transform: [{ translateY: PARTICLE_TRAVEL * progress.value }],
-  }));
+  const bottomStyle = useAnimatedStyle(() => {
+    const p = progress.value;
+    return {
+      opacity: p < 0.5 ? p * 2 : (1 - p) * 2,
+      transform: [{ translateY: PARTICLE_TRAVEL * p }],
+    };
+  });
 
   return (
     <>
@@ -222,7 +230,8 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(0, 0, 0, 0.08)',
     paddingTop: 10,
-    paddingHorizontal: spacing.lg,
+    // Narrower side padding so the track itself can be wider on screen.
+    paddingHorizontal: spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.06,
@@ -237,11 +246,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     alignSelf: 'center',
+    // Wider on tablets, full width minus the bar padding on phones.
     width: '100%',
-    maxWidth: 340,
+    maxWidth: 460,
+    // Breathing room between the two segments, on top of the inner padding.
+    gap: 8,
     borderRadius: radii.md,
     backgroundColor: '#EEEEEE',
-    padding: 4,
+    padding: 5,
     // box-shadow: 0 0 0 1px rgba(0,0,0,0.06)
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.06)',
@@ -260,10 +272,11 @@ const styles = StyleSheet.create({
   pill: {
     flex: 1,
     borderRadius: radii.md,
-    paddingVertical: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 5,
     backgroundColor: 'transparent',
   },
   pillActive: {
@@ -320,7 +333,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   label: {
-    fontSize: 12,
+    fontSize: 13,
   },
   labelActive: {
     color: '#1A1B1F',
